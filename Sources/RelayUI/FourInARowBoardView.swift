@@ -160,13 +160,20 @@ private struct FallingDisc: View {
     @State private var landed = false
     @State private var pulse = false
 
+    /// Longer drops take longer, roughly like gravity (time grows with the square root of distance).
+    private var fallDuration: Double {
+        max(0.14, 0.11 * Double(dropDistance / 40).squareRoot())
+    }
+
     var body: some View {
         DiscView(seat: seat, isHighlighted: isHighlighted, isDimmed: isDimmed)
             .scaleEffect(isHighlighted && pulse ? 1.08 : 1)
             .offset(y: animates && !landed ? -dropDistance : 0)
             .onAppear {
                 if animates {
-                    withAnimation(.interpolatingSpring(stiffness: 260, damping: 17)) {
+                    // Accelerates like a falling disc and stops dead in its slot; a spring
+                    // overshot the slot and bounced back through the disc below.
+                    withAnimation(.timingCurve(0.55, 0, 1, 0.45, duration: fallDuration)) {
                         landed = true
                     }
                 } else {
