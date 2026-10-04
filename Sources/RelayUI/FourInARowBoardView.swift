@@ -13,19 +13,24 @@ public struct FourInARowBoardView: View {
     /// Animates the most recent disc falling into place (used when opening a turn,
     /// so the opponent's move is replayed rather than appearing silently).
     public var animatesLastMove: Bool
+    /// Whose point of view VoiceOver describes discs from ("you"/"them"); nil names colours.
+    public var localSeat: Seat?
     public var onColumnTap: (Int) -> Void
+    @Environment(\.seatPalette) private var palette
 
     public init(
         state: FourInARow.State,
         ghost: (cell: FourInARow.Cell, seat: Seat)? = nil,
         isInteractive: Bool,
         animatesLastMove: Bool = true,
+        localSeat: Seat? = nil,
         onColumnTap: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
         self.ghost = ghost
         self.isInteractive = isInteractive
         self.animatesLastMove = animatesLastMove
+        self.localSeat = localSeat
         self.onColumnTap = onColumnTap
     }
 
@@ -125,10 +130,25 @@ public struct FourInARowBoardView: View {
         CGFloat(rows - target.row) * cell
     }
 
+    /// VoiceOver reads each column's discs bottom to top, then how much room is left,
+    /// e.g. "Column 3: you, them, you. 3 spaces free".
     private func columnLabel(_ column: Int) -> String {
         let filled = state.height(ofColumn: column)
         let free = rows - filled
-        return free == 0 ? "Column \(column + 1), full" : "Column \(column + 1), \(free) spaces free"
+        let discs = (0..<filled).compactMap { row -> String? in
+            let cell = FourInARow.Cell(column: column, row: row)
+            guard let seat = state.disc(at: cell) else { return nil }
+            let name = discName(seat)
+            return state.winningCells.contains(cell) ? "\(name), winning" : name
+        }
+        let contents = discs.isEmpty ? "empty" : discs.joined(separator: ", ")
+        let room = free == 0 ? "full" : free == 1 ? "1 space free" : "\(free) spaces free"
+        return "Column \(column + 1): \(contents). \(room)"
+    }
+
+    private func discName(_ seat: Seat) -> String {
+        guard let localSeat else { return palette.name(seat) }
+        return seat == localSeat ? "you" : "them"
     }
 }
 

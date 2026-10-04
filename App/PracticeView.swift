@@ -132,6 +132,7 @@ struct PracticeView: View {
             FourInARowBoardView(
                 state: model.match.state,
                 isInteractive: model.humanCanMove,
+                localSeat: model.opponent.bot == nil ? nil : .one,
                 onColumnTap: { model.tap(column: $0) }
             )
             if model.match.outcome.isFinished {

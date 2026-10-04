@@ -56,6 +56,10 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
   exists, "Rematch already started"; no playable stale board.
 - Damaged message: "This game can't be opened" with a New game button that opens the picker.
   Newer version: "Update to play this", no button.
+- Practice bots: Standard blocks an open three and takes its own win; Sharp blocks a row three
+  at once and replies within about 3 s in the simulator.
+- Free-account build (`RELAY_USE_APP_GROUP = NO`, D-025): builds, no App Group entitlement,
+  stages a move in Messages with the fallback ledger.
 - Five cold launches into Practice showed no stray first move (an earlier one-off sighting is
   treated as simulator tap timing).
 
@@ -68,7 +72,7 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 ## Not tested
 - Receiver side inside real Messages (covered only by the rehearsal and automated tests).
 - Finishing a game and rematching over real Messages; diverged history on a device.
-- Haptics (simulator has none), VoiceOver, iOS 17 drag-to-resize, Standard/Sharp bot strength by hand.
+- Haptics (simulator has none), a full VoiceOver pass, iOS 17 drag-to-resize, Sharp bot depth beyond one-move blocks.
 - Anything on a physical iPhone; any real two-person conversation.
 - App Group sharing between app and extension (needs a signing team).
 - Mac/Android recipients (fallback URL is a placeholder domain).
@@ -83,8 +87,11 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 5. **No sound.** Haptics are implemented but unverified.
 6. Staged-draft memory can outlive the compose field (if the user clears it while the
    extension is not running, reopening shows "ready to send" until they pick a move or send).
-7. `turn_opened` is also recorded for the sender after `didStartSending` (analytics noise; no sink yet).
-8. Randomized oracle test takes 50–70 s; fine for CI, slow for quick local runs.
+7. **Reopening Relay with an unsent move** (via +, after swiping the sheet away) shows the game
+   picker, not the staged move; Messages does not tell the extension about drafts. Starting a
+   second game then stages a second bubble. Same in both App Group modes.
+8. `turn_opened` is also recorded for the sender after `didStartSending` (analytics noise; no sink yet).
+9. Randomized oracle test takes 50–70 s; fine for CI, slow for quick local runs.
 
 ## Human action required
 See APP_STORE.md. Short list: Apple Developer team, bundle id prefix and App Group, all in one

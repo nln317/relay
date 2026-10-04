@@ -38,9 +38,11 @@ public struct PlayScreen: View {
                 ghost: ghost(for: match),
                 isInteractive: session.canMove,
                 animatesLastMove: true,
+                localSeat: session.localSeat,
                 onColumnTap: onColumn
             )
             .padding(.horizontal, 4)
+            .task(id: match.turnNumber) { announceOpponentMove(in: match) }
 
             footer(match)
         }
@@ -48,6 +50,15 @@ public struct PlayScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(RelayTheme.background)
         .environment(\.seatPalette, SeatPalette(coloursSwapped: match.header.coloursSwapped))
+    }
+
+    /// Tells VoiceOver users what the opponent just did, since the falling disc is silent.
+    private func announceOpponentMove(in match: Match<FourInARow>) {
+        guard let last = match.state.lastMove, match.lastActor == session.localSeat.opponent else { return }
+        var text = "They played column \(last.column + 1)."
+        if match.outcome.winner == session.localSeat.opponent { text += " They win." }
+        if case .draw = match.outcome { text += " It's a draw." }
+        AccessibilityNotification.Announcement(text).post()
     }
 
     /// The header's tally covers earlier games only; once this one ends, count it too.
