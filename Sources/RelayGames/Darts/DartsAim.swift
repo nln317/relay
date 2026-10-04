@@ -1,3 +1,4 @@
+import Foundation
 import RelayCore
 
 /// Turns an aim into a landing point. This is input, not rules: the sending device
@@ -23,9 +24,10 @@ public enum DartsAim {
     public static func flickTarget(start: (x: Double, y: Double), release: (x: Double, y: Double), velocity: (x: Double, y: Double), dartX: Double? = nil) -> (x: Double, y: Double)? {
         let upwardSpeed = -velocity.y
         guard upwardSpeed >= minimumThrowSpeed, start.y > release.y else { return nil }
-        // Height grows with the square root of speed: a moderate flick reaches the bull,
-        // and each extra bit of force adds less, so hard flicks do not shoot over the top.
-        let height = lowestReach - reachScale * upwardSpeed.squareRoot()
+        // Height follows the ratio of speeds: a moderate flick reaches the bull, and every
+        // doubling of speed (or halving) moves the dart the same distance up (or down), so
+        // the bottom of the board is as reachable as the top.
+        let height = 0.5 - reachPerDoubling * log2(upwardSpeed / bullSpeed)
         // Follow the line of the swipe up to that height. A near-flat swipe would run off
         // to infinity, so the slope is capped (the rules clamp anything off the board).
         let slope = min(max(aimSlope(start: start, release: release, velocity: velocity), -1.5), 1.5)
@@ -66,13 +68,14 @@ public enum DartsAim {
     /// Slower than this (board widths per second) and the dart is not thrown. The softest
     /// throws fall short of the board, so a feeble flick misses low.
     public static let minimumThrowSpeed = 0.3
-    /// Height the dart would reach at zero speed: below the board.
-    public static let lowestReach = 1.14
-    /// Height gained per square root of speed. About 3 widths a second reaches the bull,
-    /// 5.5 the treble 20 and about 7.5 clears the top of the board. Tuned on device with
-    /// Nathan: a straight-line mapping made the bull feel heavy and the top too touchy,
-    /// then he asked for a heavier dart again (2026-10-04, from 0.397).
-    public static let reachScale = 0.37
+    /// Flick speed (board widths per second) that reaches the bull.
+    public static let bullSpeed = 3.0
+    /// Board widths the dart climbs for each doubling of flick speed. With these, about
+    /// 1.4 widths a second reaches the bottom double, 3 the bull, 4.7 the treble 20 and
+    /// 6.6 the top double. Tuned on device with Nathan (2026-10-04): a straight-line
+    /// mapping made the bull heavy and the top touchy; a square-root one left the bottom
+    /// out of reach of soft flicks and the top too heavy.
+    public static let reachPerDoubling = 1.0 / 3.0
 
     /// Scatter grows when the flick is wild (much harder than the top of the board
     /// needs), in tenths of a millimetre.
