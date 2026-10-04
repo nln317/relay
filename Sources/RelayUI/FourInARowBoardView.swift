@@ -34,27 +34,37 @@ public struct FourInARowBoardView: View {
         self.onColumnTap = onColumnTap
     }
 
+    /// Height of the lip under the holes, in cells.
+    private static var lip: CGFloat { 0.35 }
+
     private var columns: Int { state.configuration.columns }
     private var rows: Int { state.configuration.rows }
 
     public var body: some View {
         GeometryReader { proxy in
-            let cell = min(proxy.size.width / CGFloat(columns), proxy.size.height / CGFloat(rows))
+            let cell = min(proxy.size.width / CGFloat(columns), proxy.size.height / (CGFloat(rows) + Self.lip))
             let width = cell * CGFloat(columns)
             let height = cell * CGFloat(rows)
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: cell * 0.28, style: .continuous)
-                    .fill(RelayTheme.board)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cell * 0.28, style: .continuous)
-                            .strokeBorder(RelayTheme.boardEdge, lineWidth: 2)
-                    )
+                // A glossy blue frame with a raised lip along the bottom.
+                RoundedRectangle(cornerRadius: cell * 0.1, style: .continuous)
+                    .fill(LinearGradient(colors: [Color(red: 0.12, green: 0.36, blue: 0.72), Color(red: 0.08, green: 0.27, blue: 0.6)], startPoint: .top, endPoint: .bottom))
+                    .frame(width: width, height: height + cell * Self.lip)
+                    .shadow(color: .black.opacity(0.35), radius: cell * 0.25, y: cell * 0.18)
+                RoundedRectangle(cornerRadius: cell * 0.1, style: .continuous)
+                    .fill(LinearGradient(colors: [Color(red: 0.32, green: 0.6, blue: 0.93), Color(red: 0.16, green: 0.46, blue: 0.86)], startPoint: .top, endPoint: .bottom))
+                    .frame(width: width, height: height)
+                Rectangle()
+                    .fill(LinearGradient(colors: [Color.black.opacity(0.25), .clear], startPoint: .top, endPoint: .bottom))
+                    .frame(width: width, height: cell * 0.12)
+                    .offset(y: height)
 
                 ForEach(0..<columns, id: \.self) { column in
                     ForEach(0..<rows, id: \.self) { row in
                         Circle()
-                            .fill(RelayTheme.hole)
-                            .frame(width: cell * 0.78, height: cell * 0.78)
+                            .fill(RadialGradient(colors: [Color(red: 0.06, green: 0.2, blue: 0.45), Color(red: 0.03, green: 0.13, blue: 0.33)], center: .init(x: 0.5, y: 0.35), startRadius: 0, endRadius: cell * 0.45))
+                            .overlay(Circle().strokeBorder(LinearGradient(colors: [Color.black.opacity(0.35), Color.white.opacity(0.25)], startPoint: .top, endPoint: .bottom), lineWidth: max(1, cell * 0.04)))
+                            .frame(width: cell * 0.76, height: cell * 0.76)
                             .position(center(column: column, row: row, cell: cell))
                     }
                 }
@@ -93,10 +103,10 @@ public struct FourInARowBoardView: View {
                 }
                 .frame(width: width, height: height)
             }
-            .frame(width: width, height: height)
+            .frame(width: width, height: height + cell * Self.lip, alignment: .topLeading)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .aspectRatio(CGFloat(columns) / CGFloat(rows), contentMode: .fit)
+        .aspectRatio(CGFloat(columns) / (CGFloat(rows) + Self.lip), contentMode: .fit)
         .sensoryFeedback(.impact(weight: .medium, intensity: 0.8), trigger: state.movesPlayed)
         .sensoryFeedback(.success, trigger: state.outcome.isFinished)
     }
@@ -200,11 +210,7 @@ public struct FourInARowBubbleArt: View {
 
     public var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [RelayTheme.surface, RelayTheme.background],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            LinearGradient(colors: [Color(white: 0.88), Color(white: 0.74)], startPoint: .top, endPoint: .bottom)
             FourInARowBoardView(state: state, isInteractive: false, animatesLastMove: false)
                 .padding(18)
         }

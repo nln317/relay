@@ -163,3 +163,6 @@ top left, menu top right, avatars and 3-digit score plaques in the bottom corner
 other player's visit replayed on opening, and "WAITING FOR OPPONENT..." / "YOU WON!"
 banners. Players are red and yellow. Darts now starts at 101 by default (201 and 301
 remain presets). The visual layer is kept separate so the later re-skin is a swap.
+Four in a Row gets the same treatment: light grey table, players at the top (avatar and
+disc each, "You" on the left), a glossy blue board with a lip, moulded red and yellow
+discs, help bottom left and a settings menu bottom right, with the same banners.

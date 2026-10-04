@@ -41,30 +41,50 @@ public struct PlayScreen: View {
     }
 
     private func content(_ match: Match<FourInARow>) -> some View {
-        VStack(spacing: 14) {
-            PlayersHeader(localSeat: session.localSeat, toAct: match.outcome.seatToAct, series: seriesIncludingThisGame(match))
-
-            ForEach(Array(session.notices.enumerated()), id: \.offset) { _, notice in
-                NoticeBanner(notice: notice)
+        FourInARowTable(
+            state: match.state,
+            localSeat: session.localSeat,
+            ghost: ghost(for: match),
+            canMove: session.canMove,
+            banner: banner(for: match),
+            notices: session.notices.map(\.text),
+            onColumnTap: onColumn,
+            menuItems: {
+                if match.outcome.isFinished, session.knownRematch == nil {
+                    Button("Rematch", systemImage: "arrow.counterclockwise", action: onRematch)
+                }
+                Button("New game", systemImage: "plus", action: onNewGame)
+            },
+            footer: {
+                if case .finished = session.mode {
+                    if session.knownRematch != nil {
+                        Text("Rematch started. Open the newest game bubble.")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color(white: 0.2))
+                    } else {
+                        Button("Rematch", action: onRematch)
+                            .buttonStyle(GameButtonStyle())
+                            .accessibilityHint("Starts a new game against the same player")
+                    }
+                }
             }
-
-            FourInARowBoardView(
-                state: match.state,
-                ghost: ghost(for: match),
-                isInteractive: session.canMove,
-                animatesLastMove: true,
-                localSeat: session.localSeat,
-                onColumnTap: onColumn
-            )
-            .padding(.horizontal, 4)
-            .task(id: match.turnNumber) { announceOpponentMove(in: match) }
-
-            footer(match)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(RelayTheme.background)
+        )
+        .task(id: match.turnNumber) { announceOpponentMove(in: match) }
         .environment(\.seatPalette, SeatPalette(coloursSwapped: match.header.coloursSwapped))
+    }
+
+    private func banner(for match: Match<FourInARow>) -> DartsBanner? {
+        switch session.mode {
+        case .yourTurn: return nil
+        case .waitingForOpponent: return .info("Waiting for opponent...")
+        case .readyToSend: return .info("Tap send, or pick another column")
+        case .finished:
+            switch match.outcome {
+            case .won(let winner): return winner == session.localSeat ? .celebration("You won!") : .info("You lost")
+            case .draw: return .info("Draw")
+            case .inProgress: return nil
+            }
+        }
     }
 
     /// Tells VoiceOver users what the opponent just did, since the falling disc is silent.
@@ -76,11 +96,6 @@ public struct PlayScreen: View {
         AccessibilityNotification.Announcement(text).post()
     }
 
-    /// The header's tally covers earlier games only; once this one ends, count it too.
-    private func seriesIncludingThisGame(_ match: Match<FourInARow>) -> SeriesTally {
-        match.outcome.isFinished ? match.header.series.recording(match.outcome) : match.header.series
-    }
-
     private func ghost(for match: Match<FourInARow>) -> (cell: FourInARow.Cell, seat: Seat)? {
         guard case .readyToSend(let pending) = session.mode,
               case .fourInARow(let pendingSnapshot) = pending,
@@ -88,20 +103,6 @@ public struct PlayScreen: View {
               let cell = pendingSnapshot.match.state.lastMove
         else { return nil }
         return (cell, session.localSeat)
-    }
-
-    @ViewBuilder
-    private func footer(_ match: Match<FourInARow>) -> some View {
-        switch session.mode {
-        case .yourTurn:
-            StatusLine(symbol: "hand.tap", text: match.turnNumber == 0 ? "You go first. Tap a column." : "Your move. Tap a column.")
-        case .waitingForOpponent:
-            StatusLine(symbol: "hourglass", text: "Their move. Their reply will show up in this chat.")
-        case .readyToSend:
-            StatusLine(symbol: "arrow.up.circle", text: "Your move is in the message box. Tap send, or tap another column to change it.")
-        case .finished:
-            ResultPanel(outcome: match.outcome, localSeat: session.localSeat, turns: match.turnNumber, rematchKnown: session.knownRematch != nil, onRematch: onRematch, onNewGame: onNewGame)
-        }
     }
 }
 

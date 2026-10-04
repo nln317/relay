@@ -131,45 +131,42 @@ struct PracticeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            PlayersHeader(
-                localSeat: model.opponent.bot == nil ? nil : .one,
-                toAct: model.match.outcome.seatToAct,
-                series: model.series
-            )
-            FourInARowBoardView(
-                state: model.match.state,
-                isInteractive: model.humanCanMove,
-                localSeat: model.opponent.bot == nil ? nil : .one,
-                onColumnTap: { model.tap(column: $0) }
-            )
-            if model.match.outcome.isFinished {
-                ResultPanel(
-                    outcome: model.match.outcome,
-                    localSeat: model.opponent.bot == nil ? nil : .one,
-                    turns: model.match.turnNumber,
-                    rematchKnown: false,
-                    onRematch: model.playAgain,
-                    // "Play something else" returns to the practice list.
-                    onNewGame: { dismiss() }
-                )
-            } else {
-                Text(status)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(RelayTheme.textSecondary)
+        FourInARowTable(
+            state: model.match.state,
+            localSeat: localSeat,
+            canMove: model.humanCanMove,
+            banner: banner,
+            onColumnTap: { model.tap(column: $0) },
+            menuItems: {
+                Button("Play again", systemImage: "arrow.counterclockwise") { model.playAgain() }
+                Button("Back to games", systemImage: "chevron.backward") { dismiss() }
+            },
+            footer: {
+                if model.match.outcome.isFinished {
+                    VStack(spacing: 8) {
+                        Button("Play again") { model.playAgain() }
+                            .buttonStyle(GameButtonStyle())
+                        Button("Back to games") { dismiss() }
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Color(white: 0.2))
+                    }
+                }
             }
-            Spacer(minLength: 0)
-        }
-        .padding(16)
-        .background(RelayTheme.background.ignoresSafeArea())
-        .navigationTitle("Practice")
-        .navigationBarTitleDisplayMode(.inline)
+        )
+        .toolbar(.hidden, for: .navigationBar)
     }
 
-    private var status: String {
-        if model.botThinking { return "Thinking…" }
-        guard let toAct = model.match.outcome.seatToAct else { return "" }
-        if model.opponent.bot == nil { return "\(RelayTheme.discName(toAct)) to move" }
-        return toAct == .one ? "Your move" : "Bot's move"
+    private var localSeat: Seat? { model.opponent.bot == nil ? nil : .one }
+
+    private var banner: DartsBanner? {
+        switch model.match.outcome {
+        case .won(let winner):
+            if model.opponent.bot == nil { return .celebration("\(RelayTheme.discName(winner)) won!") }
+            return winner == .one ? .celebration("You won!") : .info("The bot won")
+        case .draw:
+            return .info("Draw")
+        case .inProgress:
+            return nil
+        }
     }
 }

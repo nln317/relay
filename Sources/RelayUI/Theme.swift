@@ -23,6 +23,21 @@ public enum RelayTheme {
         }
     }
 
+    /// Lit and shaded tones of each seat colour, for the moulded disc look.
+    static func discLight(_ seat: Seat) -> Color {
+        switch seat {
+        case .one: Color(red: 1.0, green: 0.45, blue: 0.42)
+        case .two: Color(red: 1.0, green: 0.95, blue: 0.55)
+        }
+    }
+
+    static func discDark(_ seat: Seat) -> Color {
+        switch seat {
+        case .one: Color(red: 0.6, green: 0.05, blue: 0.07)
+        case .two: Color(red: 0.8, green: 0.58, blue: 0.0)
+        }
+    }
+
     public static func discName(_ seat: Seat) -> String {
         switch seat {
         case .one: "Red"
@@ -72,24 +87,30 @@ public struct DiscView: View {
             let size = min(proxy.size.width, proxy.size.height)
             let look = palette.look(seat)
             ZStack {
+                // A moulded plastic disc: lit from the top left, with a raised rim and
+                // grooves, plus a centre mark (ring or dot) so seats differ without colour.
                 Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [RelayTheme.disc(look).opacity(1), RelayTheme.disc(look).opacity(0.78)],
-                            center: .init(x: 0.35, y: 0.3),
-                            startRadius: 0,
-                            endRadius: size * 0.7
-                        )
-                    )
+                    .fill(RadialGradient(
+                        colors: [RelayTheme.discLight(look), RelayTheme.disc(look), RelayTheme.discDark(look)],
+                        center: .init(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.75
+                    ))
+                Circle()
+                    .strokeBorder(RelayTheme.discDark(look), lineWidth: max(1, size * 0.05))
+                Circle()
+                    .strokeBorder(Color.black.opacity(0.18), lineWidth: max(1, size * 0.03))
+                    .padding(size * 0.14)
+                Circle()
+                    .strokeBorder(Color.white.opacity(0.25), lineWidth: max(0.5, size * 0.02))
+                    .padding(size * 0.17)
                 switch look {
                 case .one:
                     Circle()
-                        .strokeBorder(Color.white.opacity(0.55), lineWidth: max(1.5, size * 0.07))
-                        .padding(size * 0.2)
+                        .strokeBorder(Color.black.opacity(0.2), lineWidth: max(1, size * 0.04))
+                        .padding(size * 0.32)
                 case .two:
                     Circle()
-                        .fill(Color.white.opacity(0.55))
-                        .frame(width: size * 0.22, height: size * 0.22)
+                        .fill(Color.black.opacity(0.18))
+                        .frame(width: size * 0.16, height: size * 0.16)
                 }
                 if isHighlighted {
                     Circle()
