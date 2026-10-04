@@ -57,7 +57,7 @@ struct BoardMapping {
     }
 
     /// A dart stuck in the board, seen from the oche: short, because it points at you.
-    var stuckSize: CGSize { CGSize(width: 300 * scale, height: 400 * scale) }
+    var stuckSize: CGSize { CGSize(width: 580 * scale, height: 780 * scale) }
 
     /// Darts lean a little away from the middle, as if thrown from in front of the bull.
     func tilt(for hit: Darts.Hit) -> Double {
@@ -569,6 +569,8 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
     @State private var flights: [Int: DartFlight] = [:]
     /// Darts that have arrived (or were already there), so are drawn stuck in the board.
     @State private var landed: Set<Int> = []
+    /// Darts taken off the board when the next player's turn began.
+    @State private var cleared: Set<Int> = []
     @State private var pops: [Pop] = []
     @State private var landings = 0
     @State private var dartInHand = true
@@ -666,10 +668,11 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                     .frame(width: layout.diameter, height: layout.diameter)
                     .position(mapping.centre)
 
-                ForEach(darts.filter { landed.contains($0.id) }) { dart in
+                ForEach(darts.filter { landed.contains($0.id) && !cleared.contains($0.id) }) { dart in
                     StuckDart(colour: palette.colour(dart.seat), tilt: mapping.tilt(for: dart.hit), animates: true)
                         .frame(width: mapping.stuckSize.width, height: mapping.stuckSize.height)
                         .position(x: mapping.point(for: dart.hit).x, y: mapping.point(for: dart.hit).y + mapping.stuckSize.height / 2)
+                        .transition(.opacity)
                         .accessibilityHidden(true)
                 }
                 ForEach(flights.values.sorted { $0.id < $1.id }) { flight in
@@ -677,25 +680,28 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                         .accessibilityHidden(true)
                 }
                 ForEach(pops) { pop in
-                    PointsPop(text: pop.text, size: layout.diameter * 0.13, colour: pop.colour)
-                        .position(x: pop.point.x, y: pop.point.y - layout.diameter * 0.06)
+                    let size = layout.diameter * 0.13
+                    // Kept on screen: a wide miss can land at the very edge.
+                    let half = size * 0.36 * CGFloat(pop.text.count) + 8
+                    PointsPop(text: pop.text, size: size, colour: pop.colour)
+                        .position(
+                            x: min(max(pop.point.x, half), max(half, layout.size.width - half)),
+                            y: max(pop.point.y - layout.diameter * 0.06, size)
+                        )
                         .accessibilityHidden(true)
                 }
 
-                // The dart in hand: always in the tree (only its opacity changes) so nothing moves.
-                TimelineView(.animation(minimumInterval: 1 / 30, paused: !showsHandDart || holding)) { timeline in
-                    ThrowingDart(flights: palette.colour(thrower ?? .one))
-                        .frame(width: layout.handSize.width, height: layout.handSize.height)
-                        // A gentle idle sway about the flights until the dart is picked up.
-                        .rotationEffect(.degrees(holding ? 0 : sin(timeline.date.timeIntervalSinceReferenceDate * 2.1) * 2.5), anchor: .bottom)
-                        .position(x: layout.restingTip.x + hold.width, y: layout.restingTip.y + hold.height + layout.handSize.height / 2)
-                }
+                // The dart in hand, resting still: always in the tree (only its opacity
+                // changes) so nothing moves.
+                ThrowingDart(flights: palette.colour(thrower ?? .one))
+                    .frame(width: layout.handSize.width, height: layout.handSize.height)
+                    .position(x: layout.restingTip.x + hold.width, y: layout.restingTip.y + hold.height + layout.handSize.height / 2)
                 .opacity(showsHandDart ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
 
                 if let banner {
-                    bannerView(banner, width: layout.diameter * 0.8)
+                    bannerView(banner, width: min(layout.size.width - 24, layout.diameter * 0.92))
                         .position(x: layout.size.width / 2, y: mapping.centre.y + layout.diameter * 0.3)
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
@@ -776,12 +782,16 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
 
     private func bottomBar(layout: Layout) -> some View {
         let left = localSeat ?? .one
-        return HStack(alignment: .bottom, spacing: 8) {
-            playerCorner(left)
+        // Each player pinned to a corner, whether or not there is a footer between them.
+        return ZStack(alignment: .bottom) {
+            HStack(alignment: .bottom, spacing: 0) {
+                playerCorner(left)
+                Spacer(minLength: 0)
+                playerCorner(left.opponent)
+            }
             footer
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: max(0, layout.size.width - 2 * 108))
                 .padding(.bottom, 6)
-            playerCorner(left.opponent)
         }
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
@@ -833,7 +843,8 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
             Text(text.uppercased())
                 .font(.system(size: 17, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 .padding(.vertical, 10)
                 .padding(.horizontal, 8)
                 .frame(width: width)
@@ -842,8 +853,11 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
             Text(text.uppercased())
                 .font(.system(size: 17, weight: .black, design: .rounded))
                 .foregroundStyle(Color(white: 0.08))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 .padding(.vertical, 8)
-                .frame(width: width * 0.62)
+                .padding(.horizontal, 8)
+                .frame(minWidth: width * 0.62)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(red: 1.0, green: 0.88, blue: 0.1)))
                 .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
         }
@@ -893,6 +907,7 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
     private func start(layout: Layout) {
         guard replaysDarts, !darts.isEmpty else {
             landed = Set(darts.map(\.id))
+            clearOthersSoon(after: 0.6)
             return
         }
         landed = []
@@ -908,6 +923,7 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
     private func launchFlights(from old: [PlacedDart], to new: [PlacedDart], layout: Layout) {
         let current = Set(new.map(\.id))
         landed.formIntersection(current)
+        cleared.formIntersection(current)
         flights = flights.filter { current.contains($0.key) }
         if flights.isEmpty { replayedPoints = nil }
         let known = Set(old.map(\.id))
@@ -959,6 +975,21 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
         if flights.isEmpty {
             replayedPoints = nil
             withAnimation(.easeOut(duration: 0.2).delay(0.12)) { dartInHand = true }
+            clearOthersSoon(after: 1.1)
+        }
+    }
+
+    /// When it is someone's turn to throw, the darts left by the other player come out of
+    /// the board after a moment to read them, so each visit starts on a clean board.
+    private func clearOthersSoon(after delay: Double) {
+        guard canThrow, let thrower else { return }
+        let others = Set(darts.filter { $0.seat != thrower && landed.contains($0.id) }.map(\.id))
+        guard !others.isEmpty else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(delay))
+            // Not while a dart is in the air; its landing tries again.
+            guard flights.isEmpty else { return }
+            withAnimation(.easeOut(duration: 0.35)) { cleared.formUnion(others.intersection(landed)) }
         }
     }
 

@@ -212,6 +212,11 @@ public struct ResultPanel: View {
 }
 
 /// Darts inside a conversation, on the full-screen darts table.
+private struct TableIdentity: Hashable {
+    let match: MatchID
+    let seat: Seat
+}
+
 struct DartsPlayContent: View {
     let session: PlaySession
     let match: Match<Darts>
@@ -242,6 +247,9 @@ struct DartsPlayContent: View {
             },
             footer: { footer }
         )
+        // A fresh table per match and per player, so opening the other phone's view (or
+        // another game) replays its darts instead of inheriting this one's.
+        .id(TableIdentity(match: match.header.matchID, seat: session.localSeat))
         .task(id: match.turnNumber) { announceOpponentVisit() }
     }
 

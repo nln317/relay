@@ -33,15 +33,16 @@ public enum DartsAim {
     public static let minimumThrowSpeed = 0.3
     /// Height the dart would reach at zero speed: below the board.
     public static let lowestReach = 1.14
-    /// Height gained per square root of speed. About 2.6 widths a second reaches the bull,
-    /// 4.8 the treble 20 and about 6.5 clears the top of the board. Tuned on device with
-    /// Nathan: a straight-line mapping made the bull feel heavy and the top too touchy.
-    public static let reachScale = 0.397
+    /// Height gained per square root of speed. About 3 widths a second reaches the bull,
+    /// 5.5 the treble 20 and about 7.5 clears the top of the board. Tuned on device with
+    /// Nathan: a straight-line mapping made the bull feel heavy and the top too touchy,
+    /// then he asked for a heavier dart again (2026-10-04, from 0.397).
+    public static let reachScale = 0.37
 
     /// Scatter grows when the flick is wild (much harder than the top of the board
     /// needs), in tenths of a millimetre.
     public static func scatter(forSpeed speed: Double) -> Double {
-        releaseScatter + 30 * max(0, speed - 7)
+        releaseScatter + 30 * max(0, speed - 8)
     }
 
     /// Release scatter added to every throw, standard deviation in tenths of a millimetre.
