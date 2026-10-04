@@ -224,7 +224,7 @@ private struct FlightPath: ViewModifier, Animatable {
     let flight: DartFlight
     var progress: Double
 
-    var animatableData: Double {
+    nonisolated var animatableData: Double {
         get { progress }
         set { progress = newValue }
     }
