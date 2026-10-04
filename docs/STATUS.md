@@ -68,7 +68,8 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
   treated as simulator tap timing).
 
 ### Physical device tested
-- None.
+- iPhone 17 Pro Max, iOS 26.6.1, free Personal Team (`RELAY_USE_APP_GROUP = NO`): signed device
+  build succeeded and installed. Launch waits on trusting the developer profile on the phone.
 
 ### Two-device Messages tested
 - None.
