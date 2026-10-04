@@ -135,42 +135,35 @@ struct DartsPracticeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            DartsScoreboard(
-                state: model.match.state,
-                localSeat: model.humanSeat,
-                livePreview: livePreview,
-                series: model.series
-            )
-            DartsThrowView(
-                darts: boardDarts,
-                seat: toAct ?? .one,
-                canThrow: model.humanCanThrow,
-                suggestedTarget: suggestedTarget,
-                onThrow: { model.throwDart($0) }
-            )
-            DartsVisitStrip(progress: strip?.progress, colour: RelayTheme.disc(strip?.seat ?? .one))
-            if model.match.outcome.isFinished {
-                ResultPanel(
-                    outcome: model.match.outcome,
-                    localSeat: model.humanSeat,
-                    turns: model.match.turnNumber,
-                    detail: resultDetail,
-                    rematchKnown: false,
-                    onRematch: model.playAgain,
-                    onNewGame: { dismiss() }
-                )
-            } else {
-                Text(status)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(RelayTheme.textSecondary)
+        DartsTable(
+            state: model.match.state,
+            localSeat: model.humanSeat,
+            thrower: toAct,
+            canThrow: model.humanCanThrow,
+            darts: boardDarts,
+            visit: shownVisit,
+            livePreview: livePreview,
+            dartsLeft: toAct == nil ? 0 : Darts.dartsPerVisit - model.visitHits.count,
+            banner: banner,
+            winner: model.match.outcome.winner,
+            onThrow: { model.throwDart($0) },
+            menuItems: {
+                Button("Play again", systemImage: "arrow.counterclockwise") { model.playAgain() }
+                Button("Back to games", systemImage: "chevron.backward") { dismiss() }
+            },
+            footer: {
+                if model.match.outcome.isFinished {
+                    VStack(spacing: 8) {
+                        Button("Play again") { model.playAgain() }
+                            .buttonStyle(GameButtonStyle())
+                        Button("Back to games") { dismiss() }
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.white)
+                    }
+                }
             }
-            Spacer(minLength: 0)
-        }
-        .padding(16)
-        .background(RelayTheme.background.ignoresSafeArea())
-        .navigationTitle("Practice")
-        .navigationBarTitleDisplayMode(.inline)
+        )
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private var toAct: Seat? { model.match.outcome.seatToAct }
@@ -178,11 +171,6 @@ struct DartsPracticeView: View {
     private var livePreview: (seat: Seat, remaining: Int)? {
         guard let toAct, let progress = model.progress, !progress.darts.isEmpty else { return nil }
         return (toAct, progress.remainingAfter)
-    }
-
-    private var suggestedTarget: DartsBoard.Segment? {
-        guard let toAct else { return nil }
-        return DartsBot(difficulty: .sharp).target(remaining: livePreview?.remaining ?? model.match.state.remaining(for: toAct))
     }
 
     private var boardDarts: [PlacedDart] {
@@ -194,23 +182,20 @@ struct DartsPracticeView: View {
         return last.darts.enumerated().map { PlacedDart(id: thisTurn - 10 + $0.offset, hit: $0.element.hit, seat: last.seat) }
     }
 
-    private var strip: (progress: Darts.VisitProgress, seat: Seat)? {
-        if let toAct, let progress = model.progress, !progress.darts.isEmpty { return (progress, toAct) }
-        guard let last = model.match.state.lastVisit else { return nil }
-        return (Darts.VisitProgress(last), last.seat)
+    private var shownVisit: Darts.VisitProgress? {
+        if let progress = model.progress, !progress.darts.isEmpty { return progress }
+        return model.match.state.lastVisit.map { Darts.VisitProgress($0) }
     }
 
-    private var resultDetail: String {
-        guard let last = model.match.state.lastVisit else { return "" }
-        if last.result == .finished { return "Checked out from \(last.remainingBefore)" }
-        return "Fewest points left after \(model.match.state.configuration.rounds) rounds"
-    }
-
-    private var status: String {
-        if model.botThrowing { return "Bot is throwing…" }
-        guard let toAct else { return "" }
-        // The strip under the board counts the darts; this line stays put while throwing.
-        let who = model.humanSeat == nil ? "\(RelayTheme.discName(toAct)): " : ""
-        return "\(who)Swipe the dart up at the board."
+    private var banner: DartsBanner? {
+        switch model.match.outcome {
+        case .won(let winner):
+            if model.opponent.bot == nil { return .celebration("\(RelayTheme.discName(winner)) won!") }
+            return winner == model.humanSeat ? .celebration("You won!") : .info("The bot won")
+        case .draw:
+            return .info("Draw")
+        case .inProgress:
+            return nil
+        }
     }
 }

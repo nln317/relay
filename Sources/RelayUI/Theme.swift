@@ -2,9 +2,9 @@
 import RelayCore
 import SwiftUI
 
-/// Placeholder visual identity for Milestone 1. Original, deliberately not
-/// GamePigeon's palette (no red/yellow-on-blue board). Milestone 4 replaces it
-/// with a full design system (docs/DECISIONS.md, D-010).
+/// Interim visual identity. On 2026-10-04 Nathan chose to match the classic iMessage
+/// games' look first (red and yellow players, D-031) and re-skin later, so these
+/// values are expected to change wholesale (docs/DECISIONS.md, D-010).
 public enum RelayTheme {
     public static let background = Color(red: 0.06, green: 0.07, blue: 0.11)
     public static let surface = Color(red: 0.11, green: 0.12, blue: 0.18)
@@ -18,15 +18,15 @@ public enum RelayTheme {
     /// Seat colours are the same on both devices so the bubble image reads the same.
     public static func disc(_ seat: Seat) -> Color {
         switch seat {
-        case .one: Color(red: 1.0, green: 0.42, blue: 0.36) // ember
-        case .two: Color(red: 0.20, green: 0.84, blue: 0.76) // tide
+        case .one: Color(red: 0.89, green: 0.13, blue: 0.15) // red
+        case .two: Color(red: 0.98, green: 0.80, blue: 0.08) // yellow
         }
     }
 
     public static func discName(_ seat: Seat) -> String {
         switch seat {
-        case .one: "Ember"
-        case .two: "Tide"
+        case .one: "Red"
+        case .two: "Yellow"
         }
     }
 }
@@ -54,7 +54,7 @@ extension EnvironmentValues {
 }
 
 /// A disc with a shape mark as well as a colour, so seats are distinguishable
-/// without colour vision (ring for Ember, dot for Tide).
+/// without colour vision (ring for Red, dot for Yellow).
 public struct DiscView: View {
     let seat: Seat
     var isHighlighted: Bool = false

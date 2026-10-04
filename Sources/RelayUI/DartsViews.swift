@@ -3,12 +3,14 @@ import RelayCore
 import RelayGames
 import SwiftUI
 
-/// Board units (tenths of a millimetre) from the centre to the edge of the drawn board,
-/// including the number ring outside the doubles.
+/// Board units (tenths of a millimetre) from the bull to the outside of the number ring.
 private let drawnRadius = 2_250.0
-/// Board units from the centre to the edge of the view when the wall behind the board is
-/// shown, so a dart that misses the board still has somewhere visible to stick.
-private let wallRadius = 3_000.0
+
+/// Shared timings, so the score, the points pop and the stuck dart all follow the flight.
+enum DartsTiming {
+    /// Seconds from release to the dart hitting the board.
+    static let flight = 0.24
+}
 
 /// A dart on the board: where it landed and whose it is.
 public struct PlacedDart: Equatable, Identifiable, Sendable {
@@ -23,28 +25,39 @@ public struct PlacedDart: Equatable, Identifiable, Sendable {
     }
 }
 
-/// Where things sit on a board view of a given size. Shared by the board, which draws
-/// stuck darts, and the throw view, whose flights must end exactly on them.
-struct DartsBoardGeometry {
-    let side: CGFloat
-    let visibleRadius: Double
+// MARK: - Board
 
-    init(side: CGFloat, showsWall: Bool) {
-        self.side = side
-        visibleRadius = showsWall ? wallRadius : drawnRadius
-    }
+/// Traditional dartboard colours, which belong to the sport rather than to any app.
+enum DartboardColours {
+    static let black = Color(white: 0.08)
+    static let white = Color(red: 0.97, green: 0.96, blue: 0.93)
+    static let red = Color(red: 0.86, green: 0.11, blue: 0.13)
+    static let green = Color(red: 0.05, green: 0.55, blue: 0.27)
+    static let surround = Color(white: 0.05)
+    static let highlight = Color(red: 1.0, green: 0.92, blue: 0.45)
+}
 
-    var scale: CGFloat { side / 2 / CGFloat(visibleRadius) }
+/// Where board positions land in a view, and how big things on the board are drawn.
+struct BoardMapping {
+    let centre: CGPoint
+    /// Points from the bull to the outside of the number ring.
+    let radius: CGFloat
+    /// Where stuck darts may be drawn; far misses are pulled inside it.
+    let bounds: CGRect
 
-    /// Screen point for a board position, kept inside the view so far misses stay visible.
+    var scale: CGFloat { radius / CGFloat(drawnRadius) }
+
+    /// The view point for a board position, kept inside `bounds` so far misses stay visible.
     func point(for hit: Darts.Hit) -> CGPoint {
-        let limit = visibleRadius - 150
-        let x = min(max(Double(hit.x), -limit), limit), y = min(max(Double(hit.y), -limit), limit)
-        return CGPoint(x: side / 2 + CGFloat(x) * scale, y: side / 2 - CGFloat(y) * scale)
+        let raw = CGPoint(x: centre.x + CGFloat(hit.x) * scale, y: centre.y - CGFloat(hit.y) * scale)
+        let size = stuckSize
+        let minX = bounds.minX + size.width / 2, maxX = max(minX, bounds.maxX - size.width / 2)
+        let minY = bounds.minY + 4, maxY = max(minY, bounds.maxY - size.height)
+        return CGPoint(x: min(max(raw.x, minX), maxX), y: min(max(raw.y, minY), maxY))
     }
 
     /// A dart stuck in the board, seen from the oche: short, because it points at you.
-    var stuckSize: CGSize { CGSize(width: 260 * scale, height: 420 * scale) }
+    var stuckSize: CGSize { CGSize(width: 300 * scale, height: 400 * scale) }
 
     /// Darts lean a little away from the middle, as if thrown from in front of the bull.
     func tilt(for hit: Darts.Hit) -> Double {
@@ -52,53 +65,14 @@ struct DartsBoardGeometry {
     }
 }
 
-/// The dartboard, drawn in Relay's own palette (not the traditional red/green/black/cream,
-/// and nothing borrowed from another app): sand and slate beds, Ember and Tide scoring rings.
-/// Darts stay stuck in it where they landed.
-public struct DartsBoardView: View {
-    let darts: [PlacedDart]
-    /// Darts that are thrown (committed) but still in the air, so not drawn yet.
-    let hiddenDarts: Set<Int>
-    /// Shows the wall around the board, so misses stay in view.
-    let showsWall: Bool
-    /// False for still images (bubble art), which render before any animation runs.
-    let animatesDarts: Bool
-    @Environment(\.seatPalette) private var palette
-
-    public init(darts: [PlacedDart], hiddenDarts: Set<Int> = [], showsWall: Bool = false, animatesDarts: Bool = true) {
-        self.darts = darts
-        self.hiddenDarts = hiddenDarts
-        self.showsWall = showsWall
-        self.animatesDarts = animatesDarts
-    }
-
-    public var body: some View {
-        GeometryReader { proxy in
-            let geometry = DartsBoardGeometry(side: min(proxy.size.width, proxy.size.height), showsWall: showsWall)
-            ZStack(alignment: .topLeading) {
-                Canvas { context, _ in
-                    drawBoard(in: &context, geometry: geometry)
-                }
-                .accessibilityHidden(true)
-                ForEach(darts.filter { !hiddenDarts.contains($0.id) }) { dart in
-                    StuckDart(colour: palette.colour(dart.seat), tilt: geometry.tilt(for: dart.hit), animates: animatesDarts)
-                        .frame(width: geometry.stuckSize.width, height: geometry.stuckSize.height)
-                        // The tip is the top edge of the dart.
-                        .position(x: geometry.point(for: dart.hit).x, y: geometry.point(for: dart.hit).y + geometry.stuckSize.height / 2)
-                }
-            }
-            .frame(width: geometry.side, height: geometry.side)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-
-    private func drawBoard(in context: inout GraphicsContext, geometry: DartsBoardGeometry) {
-        let scale = geometry.scale
-        let centre = CGPoint(x: geometry.side / 2, y: geometry.side / 2)
-        func circle(_ radius: Double, offsetY: CGFloat = 0) -> Path {
+/// Draws a classic dartboard: black and white beds, red and green scoring rings, a black
+/// number ring with white numbers. Our own drawing of the sport's standard look.
+enum DartboardPainter {
+    static func draw(in context: inout GraphicsContext, mapping: BoardMapping, highlight: DartsBoard.Segment? = nil, castsShadow: Bool = false) {
+        let centre = mapping.centre, scale = mapping.scale
+        func circle(_ radius: Double, dy: CGFloat = 0) -> Path {
             let r = CGFloat(radius) * scale
-            return Path(ellipseIn: CGRect(x: centre.x - r, y: centre.y - r + offsetY, width: r * 2, height: r * 2))
+            return Path(ellipseIn: CGRect(x: centre.x - r, y: centre.y - r + dy, width: r * 2, height: r * 2))
         }
         func wedge(_ index: Int, inner: Int, outer: Int) -> Path {
             // Sector `index` is centred 18·index degrees clockwise from the top.
@@ -110,56 +84,158 @@ public struct DartsBoardView: View {
             return path
         }
 
-        if showsWall {
-            let wall = Path(roundedRect: CGRect(x: 0, y: 0, width: geometry.side, height: geometry.side), cornerRadius: geometry.side * 0.05)
-            context.fill(wall, with: .linearGradient(
-                Gradient(colors: [Color(red: 0.20, green: 0.17, blue: 0.16), Color(red: 0.13, green: 0.11, blue: 0.11)]),
-                startPoint: .zero, endPoint: CGPoint(x: 0, y: geometry.side)
-            ))
-            // The board hangs slightly off the wall.
+        if castsShadow {
             var shadow = context
-            shadow.addFilter(.blur(radius: geometry.side * 0.02))
-            shadow.fill(circle(drawnRadius, offsetY: geometry.side * 0.015), with: .color(.black.opacity(0.55)))
+            shadow.addFilter(.blur(radius: mapping.radius * 0.05))
+            shadow.fill(circle(drawnRadius, dy: mapping.radius * 0.05), with: .color(.black.opacity(0.6)))
         }
+        context.fill(circle(drawnRadius), with: .color(DartboardColours.surround))
 
-        context.fill(circle(drawnRadius), with: .color(RelayTheme.board))
-        context.stroke(circle(drawnRadius - 8), with: .color(RelayTheme.boardEdge), lineWidth: 2)
-
-        let sand = Color(red: 0.86, green: 0.81, blue: 0.70)
-        let slate = Color(red: 0.17, green: 0.19, blue: 0.27)
         for index in 0..<DartsBoard.numbers.count {
             let even = index.isMultiple(of: 2)
-            let bed = even ? slate : sand
-            let ring = even ? RelayTheme.disc(.one) : RelayTheme.disc(.two)
+            let bed = even ? DartboardColours.black : DartboardColours.white
+            let ring = even ? DartboardColours.red : DartboardColours.green
             context.fill(wedge(index, inner: DartsBoard.outerBullRadius, outer: DartsBoard.trebleInnerRadius), with: .color(bed))
             context.fill(wedge(index, inner: DartsBoard.trebleInnerRadius, outer: DartsBoard.trebleOuterRadius), with: .color(ring))
             context.fill(wedge(index, inner: DartsBoard.trebleOuterRadius, outer: DartsBoard.doubleInnerRadius), with: .color(bed))
             context.fill(wedge(index, inner: DartsBoard.doubleInnerRadius, outer: DartsBoard.doubleOuterRadius), with: .color(ring))
         }
-        context.fill(circle(Double(DartsBoard.outerBullRadius)), with: .color(RelayTheme.disc(.two)))
-        context.fill(circle(Double(DartsBoard.bullRadius)), with: .color(RelayTheme.disc(.one)))
 
-        let wire = Color.white.opacity(0.35)
-        for radius in [DartsBoard.trebleInnerRadius, DartsBoard.trebleOuterRadius, DartsBoard.doubleInnerRadius, DartsBoard.doubleOuterRadius] {
-            context.stroke(circle(Double(radius)), with: .color(wire), lineWidth: 0.6)
+        if let highlight, highlight.ring != .bull, highlight.ring != .outerBull, highlight.ring != .miss,
+           let index = DartsBoard.numbers.firstIndex(of: highlight.number) {
+            context.fill(wedge(index, inner: DartsBoard.outerBullRadius, outer: DartsBoard.doubleOuterRadius), with: .color(DartboardColours.highlight.opacity(0.7)))
         }
 
-        let fontSize = max(9, CGFloat(drawnRadius - Double(DartsBoard.doubleOuterRadius)) * scale * 0.55)
+        context.fill(circle(Double(DartsBoard.outerBullRadius)), with: .color(DartboardColours.green))
+        context.fill(circle(Double(DartsBoard.bullRadius)), with: .color(DartboardColours.red))
+        if let highlight, highlight.ring == .bull || highlight.ring == .outerBull {
+            context.fill(circle(Double(DartsBoard.outerBullRadius)), with: .color(DartboardColours.highlight.opacity(0.65)))
+        }
+
+        // Thin wire between the beds.
+        let wire = GraphicsContext.Shading.color(Color(white: 0.75).opacity(0.55))
+        let wireWidth = max(0.5, mapping.radius * 0.004)
+        for radius in [DartsBoard.outerBullRadius, DartsBoard.trebleInnerRadius, DartsBoard.trebleOuterRadius, DartsBoard.doubleInnerRadius, DartsBoard.doubleOuterRadius] {
+            context.stroke(circle(Double(radius)), with: wire, lineWidth: wireWidth)
+        }
+        for index in 0..<DartsBoard.numbers.count {
+            let angle = (-90.0 + 18 * Double(index) - 9) * .pi / 180
+            let inner = CGFloat(DartsBoard.outerBullRadius) * scale, outer = CGFloat(DartsBoard.doubleOuterRadius) * scale
+            var spoke = Path()
+            spoke.move(to: CGPoint(x: centre.x + inner * CGFloat(cos(angle)), y: centre.y + inner * CGFloat(sin(angle))))
+            spoke.addLine(to: CGPoint(x: centre.x + outer * CGFloat(cos(angle)), y: centre.y + outer * CGFloat(sin(angle))))
+            context.stroke(spoke, with: wire, lineWidth: wireWidth)
+        }
+
+        let fontSize = max(7, CGFloat(drawnRadius - Double(DartsBoard.doubleOuterRadius)) * scale * 0.62)
         for (index, number) in DartsBoard.numbers.enumerated() {
             let angle = (-90.0 + 18 * Double(index)) * .pi / 180
             let radius = CGFloat(Double(DartsBoard.doubleOuterRadius) + drawnRadius) / 2 * scale
             let position = CGPoint(x: centre.x + radius * CGFloat(cos(angle)), y: centre.y + radius * CGFloat(sin(angle)))
             context.draw(
-                Text("\(number)").font(.system(size: fontSize, weight: .bold, design: .rounded)).foregroundStyle(RelayTheme.textPrimary),
+                Text("\(number)").font(.system(size: fontSize, weight: .heavy, design: .rounded)).foregroundStyle(Color.white),
                 at: position
             )
         }
     }
 }
 
+/// A dartboard with darts stuck in it, for still pictures: message bubbles and the game list.
+public struct DartsBoardView: View {
+    let darts: [PlacedDart]
+    /// False for still images (bubble art), which render before any animation runs.
+    let animatesDarts: Bool
+    @Environment(\.seatPalette) private var palette
+
+    public init(darts: [PlacedDart], animatesDarts: Bool = true) {
+        self.darts = darts
+        self.animatesDarts = animatesDarts
+    }
+
+    public var body: some View {
+        GeometryReader { proxy in
+            let side = min(proxy.size.width, proxy.size.height)
+            let mapping = BoardMapping(centre: CGPoint(x: side / 2, y: side / 2), radius: side / 2, bounds: CGRect(x: 0, y: 0, width: side, height: side))
+            ZStack(alignment: .topLeading) {
+                Canvas { context, _ in
+                    DartboardPainter.draw(in: &context, mapping: mapping)
+                }
+                .accessibilityHidden(true)
+                ForEach(darts) { dart in
+                    StuckDart(colour: palette.colour(dart.seat), tilt: mapping.tilt(for: dart.hit), animates: animatesDarts)
+                        .frame(width: mapping.stuckSize.width, height: mapping.stuckSize.height)
+                        .position(x: mapping.point(for: dart.hit).x, y: mapping.point(for: dart.hit).y + mapping.stuckSize.height / 2)
+                }
+            }
+            .frame(width: side, height: side)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+}
+
+// MARK: - Darts
+
+/// A dart drawn pointing up: steel point, dark barrel with steel grip rings, a thin shaft
+/// and flights in the thrower's colour (two side-on, one behind). Our own drawing, sized
+/// by its frame.
+struct ThrowingDart: View {
+    let flights: Color
+
+    var body: some View {
+        Canvas { context, size in
+            let w = size.width, h = size.height, mid = w / 2
+            func bar(_ top: CGFloat, _ bottom: CGFloat, width: CGFloat) -> Path {
+                Path(roundedRect: CGRect(x: mid - width / 2, y: h * top, width: width, height: h * (bottom - top)), cornerRadius: width / 2)
+            }
+            var point = Path()
+            point.move(to: CGPoint(x: mid, y: 0))
+            point.addLine(to: CGPoint(x: mid + w * 0.035, y: h * 0.2))
+            point.addLine(to: CGPoint(x: mid - w * 0.035, y: h * 0.2))
+            point.closeSubpath()
+            context.fill(point, with: .linearGradient(
+                Gradient(colors: [Color(white: 0.95), Color(white: 0.6)]),
+                startPoint: CGPoint(x: mid - w * 0.04, y: 0), endPoint: CGPoint(x: mid + w * 0.04, y: 0)
+            ))
+
+            // The flight behind, darker, then the two side flights.
+            var back = Path()
+            back.move(to: CGPoint(x: mid, y: h * 0.58))
+            back.addLine(to: CGPoint(x: mid + w * 0.12, y: h * 0.86))
+            back.addLine(to: CGPoint(x: mid, y: h * 0.97))
+            back.addLine(to: CGPoint(x: mid - w * 0.12, y: h * 0.86))
+            back.closeSubpath()
+            context.fill(back, with: .color(flights))
+            context.fill(back, with: .color(.black.opacity(0.35)))
+            for side in [-1.0, 1.0] {
+                var fin = Path()
+                fin.move(to: CGPoint(x: mid, y: h * 0.56))
+                fin.addLine(to: CGPoint(x: mid + side * w * 0.5, y: h * 0.84))
+                fin.addLine(to: CGPoint(x: mid + side * w * 0.44, y: h))
+                fin.addLine(to: CGPoint(x: mid + side * w * 0.04, y: h * 0.9))
+                fin.closeSubpath()
+                context.fill(fin, with: .color(flights))
+                context.fill(fin, with: .color(side < 0 ? .white.opacity(0.12) : .black.opacity(0.15)))
+            }
+            context.fill(bar(0.62, 1.0, width: w * 0.06), with: .color(flights))
+            context.fill(bar(0.62, 1.0, width: w * 0.06), with: .color(.black.opacity(0.3)))
+
+            context.fill(bar(0.52, 0.64, width: w * 0.07), with: .color(Color(white: 0.25)))
+            context.fill(bar(0.19, 0.54, width: w * 0.13), with: .linearGradient(
+                Gradient(colors: [Color(white: 0.32), Color(white: 0.12)]),
+                startPoint: CGPoint(x: mid - w * 0.07, y: 0), endPoint: CGPoint(x: mid + w * 0.07, y: 0)
+            ))
+            for band in [0.27, 0.33, 0.39, 0.45] {
+                context.fill(bar(band, band + 0.018, width: w * 0.13), with: .color(Color(white: 0.7)))
+            }
+        }
+        .shadow(color: .black.opacity(0.35), radius: 2, y: 1.5)
+    }
+}
+
 /// A dart stuck where it landed. When it appears (the moment its flight arrives) it
 /// thuds in with a short jolt and a quick, heavy settle, then rests at its lean.
-private struct StuckDart: View {
+struct StuckDart: View {
     let colour: Color
     let tilt: Double
     let animates: Bool
@@ -185,7 +261,7 @@ private struct StuckDart: View {
 }
 
 /// One dart in the air, from where it left the hand to where it sticks.
-private struct DartFlight: Identifiable {
+struct DartFlight: Identifiable {
     let id: Int
     let colour: Color
     let fromTip: CGPoint
@@ -198,7 +274,7 @@ private struct DartFlight: Identifiable {
     let delay: Double
 }
 
-private struct FlyingDart: View {
+struct FlyingDart: View {
     let flight: DartFlight
     let onArrival: () -> Void
     @State private var progress = 0.0
@@ -209,7 +285,7 @@ private struct FlyingDart: View {
             .allowsHitTesting(false)
             .onAppear {
                 // Quick off the hand, easing as it travels away into the board.
-                withAnimation(.timingCurve(0.25, 0.55, 0.5, 1, duration: DartsThrowView.flightDuration).delay(flight.delay)) {
+                withAnimation(.timingCurve(0.25, 0.55, 0.5, 1, duration: DartsTiming.flight).delay(flight.delay)) {
                     progress = 1
                 } completion: {
                     onArrival()
@@ -220,7 +296,7 @@ private struct FlyingDart: View {
 
 /// Places a flying dart along a shallow arc, shrinking with distance (perspective) and
 /// turning to its final lean, so the last frame is exactly the stuck dart.
-private struct FlightPath: ViewModifier, Animatable {
+struct FlightPath: ViewModifier, Animatable {
     let flight: DartFlight
     var progress: Double
 
@@ -248,103 +324,549 @@ private struct FlightPath: ViewModifier, Animatable {
     }
 }
 
-/// The throwing area: the board on its wall, with a dart held below it. Swipe the dart up
-/// to throw. How hard you flick sets how high it flies and the line of the flick sets left
-/// and right (`DartsAim.flickTarget`); overdo it or slice it and it misses into the wall.
-/// The landing point is committed the moment the dart leaves your hand; the flight is
-/// only animation, and every dart (the bot's too) flies in rather than appearing.
-/// VoiceOver users get throw actions.
-public struct DartsThrowView: View {
-    let darts: [PlacedDart]
-    let seat: Seat
+// MARK: - Table furniture
+
+/// Warm wood-grain wall behind the board, drawn procedurally (no image assets).
+struct WoodWall: View {
+    var body: some View {
+        Canvas { context, size in
+            let rect = CGRect(origin: .zero, size: size)
+            context.fill(Path(rect), with: .linearGradient(
+                Gradient(colors: [Color(red: 0.47, green: 0.25, blue: 0.13), Color(red: 0.37, green: 0.19, blue: 0.10)]),
+                startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)
+            ))
+            // Grain: long wavy streaks, from a fixed seed so the wall never shimmers.
+            var seed: UInt64 = 0x9E37_79B9_7F4A_7C15
+            func next() -> Double {
+                seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+                return Double(seed >> 11) / Double(UInt64(1) << 53)
+            }
+            let streaks = max(40, Int(size.width / 3))
+            for _ in 0..<streaks {
+                let x0 = next() * Double(size.width)
+                let amplitude = 2 + next() * 6
+                let wavelength = 120 + next() * 260
+                let phase = next() * 6.28
+                let width = 0.4 + next() * 2.2
+                let dark = next() < 0.65
+                let alpha = 0.05 + next() * 0.16
+                var path = Path()
+                var y = -10.0
+                path.move(to: CGPoint(x: x0 + amplitude * sin(phase), y: y))
+                while y < Double(size.height) + 10 {
+                    y += 12
+                    path.addLine(to: CGPoint(x: x0 + amplitude * sin(y / wavelength * 6.28 + phase), y: y))
+                }
+                let colour = dark ? Color(red: 0.17, green: 0.07, blue: 0.03) : Color(red: 0.75, green: 0.47, blue: 0.27)
+                context.stroke(path, with: .color(colour.opacity(alpha)), lineWidth: width)
+            }
+            // Soft vignette.
+            context.fill(Path(rect), with: .radialGradient(
+                Gradient(colors: [.clear, .black.opacity(0.35)]),
+                center: CGPoint(x: size.width / 2, y: size.height * 0.4),
+                startRadius: min(size.width, size.height) * 0.3, endRadius: max(size.width, size.height) * 0.8
+            ))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Score plaque: a green ticket with clipped corners and a three-digit score.
+struct ScorePlaque: View {
+    let value: Int
+    let delay: Double
+
+    var body: some View {
+        CountingNumber(value: Double(value), digits: 3)
+            .font(.system(size: 22, weight: .heavy, design: .rounded).monospacedDigit())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background {
+                TicketShape()
+                    .fill(Color(red: 0.08, green: 0.42, blue: 0.24))
+                    .overlay(TicketShape().inset(by: 3).stroke(Color.white.opacity(0.85), lineWidth: 2))
+                    .shadow(color: .black.opacity(0.4), radius: 3, y: 2)
+            }
+            // Count down as the dart hits the board, not when it leaves the hand.
+            .animation(.easeOut(duration: 0.45).delay(delay), value: value)
+    }
+}
+
+/// A rectangle with its corners scooped inwards, like a raffle ticket.
+struct TicketShape: InsettableShape {
+    var insetAmount: CGFloat = 0
+
+    func path(in rect: CGRect) -> Path {
+        let r = rect.insetBy(dx: insetAmount, dy: insetAmount)
+        let cut = min(r.width, r.height) * 0.22
+        var path = Path()
+        path.move(to: CGPoint(x: r.minX + cut, y: r.minY))
+        path.addLine(to: CGPoint(x: r.maxX - cut, y: r.minY))
+        path.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + cut), control: CGPoint(x: r.maxX - cut, y: r.minY + cut))
+        path.addLine(to: CGPoint(x: r.maxX, y: r.maxY - cut))
+        path.addQuadCurve(to: CGPoint(x: r.maxX - cut, y: r.maxY), control: CGPoint(x: r.maxX - cut, y: r.maxY - cut))
+        path.addLine(to: CGPoint(x: r.minX + cut, y: r.maxY))
+        path.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY - cut), control: CGPoint(x: r.minX + cut, y: r.maxY - cut))
+        path.addLine(to: CGPoint(x: r.minX, y: r.minY + cut))
+        path.addQuadCurve(to: CGPoint(x: r.minX + cut, y: r.minY), control: CGPoint(x: r.minX + cut, y: r.minY + cut))
+        path.closeSubpath()
+        return path
+    }
+
+    func inset(by amount: CGFloat) -> TicketShape {
+        var shape = self
+        shape.insetAmount += amount
+        return shape
+    }
+}
+
+/// A whole number that counts to its new value (101, 100, 99 … 41) instead of
+/// morphing digit by digit, which can flash numbers that were never the score.
+struct CountingNumber: View, Animatable {
+    var value: Double
+    var digits = 1
+
+    nonisolated var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        let text = String(max(0, Int(value.rounded())))
+        Text(String(repeating: "0", count: max(0, digits - text.count)) + text)
+    }
+}
+
+/// A player's round avatar, with an optional label above it.
+struct PlayerBadge: View {
+    let colour: Color
+    let label: String?
+    let isActive: Bool
+    let glows: Bool
+
+    var body: some View {
+        VStack(spacing: 3) {
+            if let label {
+                Text(label)
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.7), radius: 1, y: 1)
+            }
+            ZStack {
+                Circle().fill(Color.black.opacity(0.85))
+                Image(systemName: "person.fill")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(colour)
+                Circle().strokeBorder(isActive ? Color.white : Color.white.opacity(0.25), lineWidth: isActive ? 2.5 : 1)
+            }
+            .frame(width: 48, height: 48)
+            .shadow(color: glows ? Color.yellow.opacity(0.95) : .black.opacity(0.4), radius: glows ? 14 : 3, y: glows ? 0 : 2)
+        }
+    }
+}
+
+/// The yellow tag that says how many points finish the game with one dart.
+struct CheckoutTag: View {
+    let points: Int
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text("\(points)").font(.subheadline.weight(.black))
+            Text("to win").font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(Color(white: 0.1))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Color(red: 1.0, green: 0.86, blue: 0.1)))
+        .overlay(alignment: .bottom) {
+            Triangle().fill(Color(red: 1.0, green: 0.86, blue: 0.1))
+                .frame(width: 10, height: 6)
+                .offset(y: 5)
+        }
+    }
+}
+
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// A dart's points, popping up where it landed, then floating away.
+struct PointsPop: View {
+    let text: String
+    let size: CGFloat
+    let colour: Color
+    @State private var shown = false
+    @State private var leaving = false
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: size, weight: .black, design: .rounded))
+            .foregroundStyle(colour)
+            .shadow(color: .white, radius: 0, x: 1.5, y: 0)
+            .shadow(color: .white, radius: 0, x: -1.5, y: 0)
+            .shadow(color: .white, radius: 0, x: 0, y: 1.5)
+            .shadow(color: .white, radius: 0, x: 0, y: -1.5)
+            .shadow(color: .black.opacity(0.4), radius: 3, y: 2)
+            .fixedSize()
+            .scaleEffect(shown ? 1 : 0.3)
+            .opacity(shown && !leaving ? 1 : 0)
+            .offset(y: leaving ? -size * 0.9 : 0)
+            .allowsHitTesting(false)
+            .onAppear {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.55)) { shown = true }
+                withAnimation(.easeIn(duration: 0.45).delay(0.75)) { leaving = true }
+            }
+    }
+}
+
+/// A banner across the lower half of the board.
+public enum DartsBanner: Equatable, Sendable {
+    /// Dark banner, white capitals: "WAITING FOR OPPONENT..."
+    case info(String)
+    /// Yellow banner, dark capitals: "YOU WON!"
+    case celebration(String)
+}
+
+// MARK: - The table
+
+/// The whole Darts screen, laid out like the classic iMessage darts game: a wood wall, a
+/// big board at the top, the dart in hand below it, darts left top left, a menu top right,
+/// and each player's avatar and score in the bottom corners. The player swipes the dart up
+/// to throw: how hard sets how high it flies, the line of the flick sets left and right
+/// (`DartsAim.flickTarget`). The landing point is committed the moment the dart leaves the
+/// hand; the flight is only animation, and every dart (the bot's, and the other player's
+/// visit replayed on opening) flies in rather than appearing.
+public struct DartsTable<MenuItems: View, Footer: View>: View {
+    let state: Darts.State
+    let localSeat: Seat?
+    let thrower: Seat?
     let canThrow: Bool
-    let suggestedTarget: DartsBoard.Segment?
+    let darts: [PlacedDart]
+    let visit: Darts.VisitProgress?
+    let livePreview: (seat: Seat, remaining: Int)?
+    let dartsLeft: Int
+    let banner: DartsBanner?
+    let winner: Seat?
+    let replaysDarts: Bool
+    let notices: [String]
     let onThrow: (Darts.Hit) -> Void
+    let menuItems: MenuItems
+    let footer: Footer
 
     /// Finger movement while the dart is held; kept at release until the flight takes over.
     @State private var hold: CGSize = .zero
+    @State private var holding = false
     /// Where the player's dart left the hand, until its landing shows up in `darts`.
     @State private var launchTip: CGPoint?
     @State private var flights: [Int: DartFlight] = [:]
     /// Darts that have arrived (or were already there), so are drawn stuck in the board.
     @State private var landed: Set<Int> = []
+    @State private var pops: [Pop] = []
     @State private var landings = 0
     @State private var dartInHand = true
+    /// Points landed so far by darts replaying the last visit, for that player's plaque.
+    @State private var replayedPoints: Int?
+    @State private var showingRules = false
     @Environment(\.seatPalette) private var palette
 
-    /// Seconds from release to the dart hitting the board.
-    static let flightDuration = 0.34
-    /// Height of the area below the board where the dart is held, as a share of the board.
-    private static let handHeight: CGFloat = 0.36
+    struct Pop: Identifiable {
+        let id: Int
+        let text: String
+        let point: CGPoint
+        let colour: Color
+    }
 
-    public init(darts: [PlacedDart], seat: Seat, canThrow: Bool, suggestedTarget: DartsBoard.Segment? = nil, onThrow: @escaping (Darts.Hit) -> Void) {
-        self.darts = darts
-        self.seat = seat
+    /// - Parameters:
+    ///   - localSeat: whose device this is; nil for pass and play (both seats local).
+    ///   - thrower: who is throwing now on this device: their dart is in hand.
+    ///   - darts: darts on the board, in the order they were thrown.
+    ///   - visit: how those darts scored, to mark a bust.
+    ///   - livePreview: the thrower's score after the darts thrown so far this visit.
+    ///   - winner: lights up that player's avatar.
+    ///   - replaysDarts: fly the darts on the board in when the table appears (opening the
+    ///     other player's visit).
+    public init(
+        state: Darts.State,
+        localSeat: Seat?,
+        thrower: Seat?,
+        canThrow: Bool,
+        darts: [PlacedDart],
+        visit: Darts.VisitProgress?,
+        livePreview: (seat: Seat, remaining: Int)?,
+        dartsLeft: Int,
+        banner: DartsBanner?,
+        winner: Seat?,
+        replaysDarts: Bool = false,
+        notices: [String] = [],
+        onThrow: @escaping (Darts.Hit) -> Void,
+        @ViewBuilder menuItems: () -> MenuItems,
+        @ViewBuilder footer: () -> Footer
+    ) {
+        self.state = state
+        self.localSeat = localSeat
+        self.thrower = thrower
         self.canThrow = canThrow
-        self.suggestedTarget = suggestedTarget
+        self.darts = darts
+        self.visit = visit
+        self.livePreview = livePreview
+        self.dartsLeft = dartsLeft
+        self.banner = banner
+        self.winner = winner
+        self.replaysDarts = replaysDarts
+        self.notices = notices
         self.onThrow = onThrow
+        self.menuItems = menuItems()
+        self.footer = footer()
+    }
+
+    private struct Layout {
+        let size: CGSize
+        let top: CGFloat = 50
+        let bottom: CGFloat = 118
+
+        var diameter: CGFloat { max(120, min(size.width - 14, (size.height - top - bottom) * 0.64)) }
+        var mapping: BoardMapping {
+            BoardMapping(
+                centre: CGPoint(x: size.width / 2, y: top + diameter / 2),
+                radius: diameter / 2,
+                bounds: CGRect(x: 0, y: top * 0.4, width: size.width, height: size.height - bottom)
+            )
+        }
+        var boardBottom: CGFloat { top + diameter }
+        var handHeight: CGFloat { max(60, size.height - bottom - boardBottom) }
+        var dartLength: CGFloat { min(size.width * 0.36, handHeight * 0.95) }
+        var handSize: CGSize { CGSize(width: dartLength * 0.62, height: dartLength) }
+        var restingTip: CGPoint {
+            CGPoint(x: size.width / 2, y: boardBottom + max(6, (handHeight - dartLength) * 0.35))
+        }
+        /// Board widths, with the board's top-left corner at the origin.
+        func unit(_ point: CGPoint) -> (x: Double, y: Double) {
+            let originX = size.width / 2 - diameter / 2
+            return (Double((point.x - originX) / diameter), Double((point.y - top) / diameter))
+        }
     }
 
     public var body: some View {
         GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height / (1 + Self.handHeight))
-            let length = side * Self.handHeight * 0.8
-            let board = DartsBoardGeometry(side: side, showsWall: true)
-            let resting = restingTip(side: side)
+            let layout = Layout(size: proxy.size)
+            let mapping = layout.mapping
             ZStack(alignment: .topLeading) {
-                DartsBoardView(darts: darts, hiddenDarts: Set(darts.map(\.id)).subtracting(landed), showsWall: true)
-                    .frame(width: side, height: side)
-                // Always in the tree (only its opacity changes) so nothing around it moves.
-                ThrowingDart(flights: palette.colour(seat))
-                    .frame(width: length * 0.3, height: length)
-                    .position(x: resting.x + hold.width, y: resting.y + hold.height + length / 2)
-                    .opacity(canThrow && dartInHand ? 1 : 0)
-                    .allowsHitTesting(false)
+                Canvas { context, _ in
+                    DartboardPainter.draw(in: &context, mapping: mapping, highlight: checkout?.segment, castsShadow: true)
+                }
+                boardAccessibility
+                    .frame(width: layout.diameter, height: layout.diameter)
+                    .position(mapping.centre)
+
+                ForEach(darts.filter { landed.contains($0.id) }) { dart in
+                    StuckDart(colour: palette.colour(dart.seat), tilt: mapping.tilt(for: dart.hit), animates: true)
+                        .frame(width: mapping.stuckSize.width, height: mapping.stuckSize.height)
+                        .position(x: mapping.point(for: dart.hit).x, y: mapping.point(for: dart.hit).y + mapping.stuckSize.height / 2)
+                        .accessibilityHidden(true)
+                }
                 ForEach(flights.values.sorted { $0.id < $1.id }) { flight in
-                    FlyingDart(flight: flight) { arrive(flight.id) }
+                    FlyingDart(flight: flight) { arrive(flight.id, mapping: mapping) }
+                        .accessibilityHidden(true)
                 }
+                ForEach(pops) { pop in
+                    PointsPop(text: pop.text, size: layout.diameter * 0.13, colour: pop.colour)
+                        .position(x: pop.point.x, y: pop.point.y - layout.diameter * 0.06)
+                        .accessibilityHidden(true)
+                }
+
+                // The dart in hand: always in the tree (only its opacity changes) so nothing moves.
+                TimelineView(.animation(minimumInterval: 1 / 30, paused: !showsHandDart || holding)) { timeline in
+                    ThrowingDart(flights: palette.colour(thrower ?? .one))
+                        .frame(width: layout.handSize.width, height: layout.handSize.height)
+                        // A gentle idle sway about the flights until the dart is picked up.
+                        .rotationEffect(.degrees(holding ? 0 : sin(timeline.date.timeIntervalSinceReferenceDate * 2.1) * 2.5), anchor: .bottom)
+                        .position(x: layout.restingTip.x + hold.width, y: layout.restingTip.y + hold.height + layout.handSize.height / 2)
+                }
+                .opacity(showsHandDart ? 1 : 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+
+                if let banner {
+                    bannerView(banner, width: layout.diameter * 0.8)
+                        .position(x: layout.size.width / 2, y: mapping.centre.y + layout.diameter * 0.3)
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                }
+
+                topBar.frame(width: layout.size.width)
+                bottomBar(layout: layout)
             }
-            .frame(width: side, height: side * (1 + Self.handHeight))
+            .frame(width: proxy.size.width, height: proxy.size.height)
             .contentShape(Rectangle())
-            .gesture(throwGesture(side: side), including: canThrow ? .all : .subviews)
-            .onAppear { landed = Set(darts.map(\.id)) }
+            .gesture(throwGesture(layout: layout), including: canThrow ? .all : .subviews)
+            .onAppear { start(layout: layout) }
             .onChange(of: darts) { old, new in
-                launchFlights(from: old, to: new, resting: resting, handSize: CGSize(width: length * 0.3, height: length), board: board)
+                launchFlights(from: old, to: new, layout: layout)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .aspectRatio(1 / (1 + Self.handHeight), contentMode: .fit)
+        .background {
+            ZStack {
+                WoodWall()
+                Color(red: 1, green: 0.8, blue: 0.1)
+                    .opacity(celebrates ? 0.3 : 0)
+                    .blendMode(.screen)
+            }
+            .ignoresSafeArea()
+        }
+        .animation(.easeInOut(duration: 0.6), value: celebrates)
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: banner)
         .sensoryFeedback(.impact(weight: .heavy, intensity: 1), trigger: landings)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityDescription)
-        .accessibilityHint(canThrow ? "Use the actions to throw a dart." : "")
-        .accessibilityActions {
-            if canThrow {
-                ForEach(accessibilityTargets, id: \.self) { target in
-                    Button("Throw at \(target.spokenName)") { throwAt(target) }
+        .alert("How to play", isPresented: $showingRules) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Swipe the dart up at the board. Flick harder to throw higher; the line of your swipe aims left and right. Each turn is three darts. Count down from \(state.configuration.startingScore) and hit exactly zero to win. Going below zero is a bust and the turn scores nothing.")
+        }
+    }
+
+    private var showsHandDart: Bool { canThrow && dartInHand && thrower != nil }
+    private var celebrates: Bool { winner != nil && (localSeat == nil || winner == localSeat) }
+
+    // MARK: Pieces
+
+    private var topBar: some View {
+        HStack(alignment: .top) {
+            HStack(spacing: 2) {
+                ForEach(0..<Darts.dartsPerVisit, id: \.self) { index in
+                    ThrowingDart(flights: index < dartsLeft ? palette.colour(thrower ?? .one) : Color(white: 0.45))
+                        .frame(width: 12, height: 24)
+                        .opacity(index < dartsLeft ? 1 : 0.5)
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(dartsLeft) darts left")
+            VStack(spacing: 6) {
+                ForEach(notices, id: \.self) { notice in
+                    Text(notice)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.black.opacity(0.6)))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            Menu {
+                menuItems
+                Button("How to play", systemImage: "questionmark.circle") { showingRules = true }
+            } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color.black.opacity(0.75)))
+            }
+            .accessibilityLabel("Menu")
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
+    }
+
+    private func bottomBar(layout: Layout) -> some View {
+        let left = localSeat ?? .one
+        return HStack(alignment: .bottom, spacing: 8) {
+            playerCorner(left)
+            footer
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 6)
+            playerCorner(left.opponent)
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+        .frame(width: layout.size.width, height: layout.size.height, alignment: .bottom)
+    }
+
+    private func playerCorner(_ seat: Seat) -> some View {
+        let toAct = state.outcome.seatToAct == seat
+        return VStack(spacing: 8) {
+            if let checkout, checkout.seat == seat {
+                CheckoutTag(points: checkout.points)
+                    .transition(.scale.combined(with: .opacity))
+            }
+            PlayerBadge(colour: palette.colour(seat), label: label(for: seat), isActive: toAct, glows: winner == seat)
+            ScorePlaque(value: plaqueValue(seat), delay: DartsTiming.flight + 0.25)
+        }
+        .frame(minWidth: 84)
+        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: checkout?.points)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label(for: seat) ?? "Them"): \(plaqueValue(seat)) left\(toAct ? ", to throw" : "")")
+    }
+
+    private func label(for seat: Seat) -> String? {
+        guard let localSeat else { return palette.name(seat) }
+        return seat == localSeat ? "You" : nil
+    }
+
+    private func plaqueValue(_ seat: Seat) -> Int {
+        if let replayedPoints, let last = state.lastVisit, last.seat == seat {
+            return max(0, last.remainingBefore - replayedPoints)
+        }
+        if let livePreview, livePreview.seat == seat { return livePreview.remaining }
+        return state.remaining(for: seat)
+    }
+
+    /// The thrower's one-dart finish, if there is one: the tag above their avatar and the
+    /// segment lit on the board.
+    private var checkout: (seat: Seat, points: Int, segment: DartsBoard.Segment)? {
+        guard canThrow, let thrower else { return nil }
+        let remaining = livePreview.flatMap { $0.seat == thrower ? $0.remaining : nil } ?? state.remaining(for: thrower)
+        guard let segment = DartsCheckout.oneDartFinish(remaining) else { return nil }
+        return (thrower, remaining, segment)
+    }
+
+    @ViewBuilder
+    private func bannerView(_ banner: DartsBanner, width: CGFloat) -> some View {
+        switch banner {
+        case .info(let text):
+            Text(text.uppercased())
+                .font(.system(size: 17, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 8)
+                .frame(width: width)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.black.opacity(0.7)))
+        case .celebration(let text):
+            Text(text.uppercased())
+                .font(.system(size: 17, weight: .black, design: .rounded))
+                .foregroundStyle(Color(white: 0.08))
+                .padding(.vertical, 8)
+                .frame(width: width * 0.62)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(red: 1.0, green: 0.88, blue: 0.1)))
+                .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
         }
     }
 
-    /// Where the dart's tip rests: centred, a little way into the area below the board.
-    private func restingTip(side: CGFloat) -> CGPoint {
-        CGPoint(x: side / 2, y: side * (1 + Self.handHeight * 0.12))
-    }
+    // MARK: Throwing
 
-    private func throwGesture(side: CGFloat) -> some Gesture {
+    private func throwGesture(layout: Layout) -> some Gesture {
         DragGesture(minimumDistance: 2)
             .onChanged { value in
-                // Only a swipe that starts on or below the bottom of the board picks up the dart.
-                guard canThrow, dartInHand, launchTip == nil, value.startLocation.y > side * 0.85 else { return }
+                // Only a swipe that starts low on the board or below it picks up the dart.
+                guard showsHandDart, launchTip == nil, value.startLocation.y > layout.mapping.centre.y + layout.diameter * 0.3 else { return }
+                holding = true
                 hold = value.translation
             }
             .onEnded { value in
-                guard canThrow, dartInHand, launchTip == nil, value.startLocation.y > side * 0.85 else { return }
+                guard showsHandDart, launchTip == nil, holding else { return }
+                holding = false
+                let diameter = Double(layout.diameter)
                 let target = DartsAim.flickTarget(
-                    start: (Double(value.startLocation.x / side), Double(value.startLocation.y / side)),
-                    release: (Double(value.location.x / side), Double(value.location.y / side)),
-                    velocity: (Double(value.velocity.width / side), Double(value.velocity.height / side))
+                    start: layout.unit(value.startLocation),
+                    release: layout.unit(value.location),
+                    velocity: (Double(value.velocity.width) / diameter, Double(value.velocity.height) / diameter)
                 )
                 guard let target else {
                     withAnimation(.spring(duration: 0.3, bounce: 0.35)) { hold = .zero }
@@ -352,11 +874,10 @@ public struct DartsThrowView: View {
                 }
                 // Board widths to board units: the board's drawn edge is `drawnRadius` from the bull.
                 let aim = Darts.Hit(x: Int(((target.x - 0.5) * 2 * drawnRadius).rounded()), y: Int(((0.5 - target.y) * 2 * drawnRadius).rounded()))
-                let speed = (value.velocity.width * value.velocity.width + value.velocity.height * value.velocity.height).squareRoot() / side
+                let speed = Double((value.velocity.width * value.velocity.width + value.velocity.height * value.velocity.height).squareRoot()) / diameter
                 var rng = SystemRandomNumberGenerator()
-                let hit = DartsAim.landing(aim: aim, scatter: DartsAim.scatter(forSpeed: Double(speed)), using: &rng)
-                let resting = restingTip(side: side)
-                launchTip = CGPoint(x: resting.x + hold.width, y: resting.y + hold.height)
+                let hit = DartsAim.landing(aim: aim, scatter: DartsAim.scatter(forSpeed: speed), using: &rng)
+                launchTip = CGPoint(x: layout.restingTip.x + hold.width, y: layout.restingTip.y + hold.height)
                 onThrow(hit)
                 // If the throw was not taken (it should always be), put the dart back in hand.
                 Task { @MainActor in
@@ -368,42 +889,94 @@ public struct DartsThrowView: View {
             }
     }
 
+    /// Shows what is already on the board, or flies it in when replaying a visit.
+    private func start(layout: Layout) {
+        guard replaysDarts, !darts.isEmpty else {
+            landed = Set(darts.map(\.id))
+            return
+        }
+        landed = []
+        replayedPoints = 0
+        dartInHand = false
+        for (index, dart) in darts.enumerated() {
+            flights[dart.id] = flight(for: dart, from: layout.restingTip, layout: layout, delay: 0.5 + Double(index) * 0.75)
+        }
+    }
+
     /// Starts a flight for every dart that just appeared. The player's own dart leaves from
-    /// where it was let go; anyone else's (the bot's, or the other player's arriving visit)
-    /// flies up from the hand position, one after another.
-    private func launchFlights(from old: [PlacedDart], to new: [PlacedDart], resting: CGPoint, handSize: CGSize, board: DartsBoardGeometry) {
+    /// where it was let go; anyone else's (the bot's) flies up from the hand position.
+    private func launchFlights(from old: [PlacedDart], to new: [PlacedDart], layout: Layout) {
         let current = Set(new.map(\.id))
         landed.formIntersection(current)
         flights = flights.filter { current.contains($0.key) }
+        if flights.isEmpty { replayedPoints = nil }
         let known = Set(old.map(\.id))
         for (index, dart) in new.filter({ !known.contains($0.id) }).enumerated() {
-            let start = launchTip ?? resting
+            let start = launchTip ?? layout.restingTip
             if launchTip != nil {
                 // The flying dart takes over from the one in hand in the same frame.
                 launchTip = nil
                 dartInHand = false
                 hold = .zero
             }
-            flights[dart.id] = DartFlight(
-                id: dart.id,
-                colour: palette.colour(dart.seat),
-                fromTip: start,
-                fromSize: handSize,
-                toTip: board.point(for: dart.hit),
-                toSize: board.stuckSize,
-                tilt: board.tilt(for: dart.hit),
-                lift: board.side * 0.08,
-                delay: Double(index) * 0.35
-            )
+            flights[dart.id] = flight(for: dart, from: start, layout: layout, delay: Double(index) * 0.35)
         }
     }
 
-    private func arrive(_ id: Int) {
+    private func flight(for dart: PlacedDart, from start: CGPoint, layout: Layout, delay: Double) -> DartFlight {
+        let mapping = layout.mapping
+        return DartFlight(
+            id: dart.id,
+            colour: palette.colour(dart.seat),
+            fromTip: start,
+            fromSize: layout.handSize,
+            toTip: mapping.point(for: dart.hit),
+            toSize: mapping.stuckSize,
+            tilt: mapping.tilt(for: dart.hit),
+            lift: layout.diameter * 0.05,
+            delay: delay
+        )
+    }
+
+    private func arrive(_ id: Int, mapping: BoardMapping) {
         guard flights[id] != nil else { return }
         flights[id] = nil
         landed.insert(id)
         landings += 1
-        withAnimation(.easeOut(duration: 0.2).delay(0.12)) { dartInHand = true }
+        if let index = darts.firstIndex(where: { $0.id == id }) {
+            let segment = DartsBoard.segment(at: darts[index].hit)
+            let busted = visit?.result == .bust && index == (visit?.darts.count ?? 0) - 1
+            let text = busted ? "BUST" : segment == .miss ? "MISS" : "\(segment.points)"
+            let pop = Pop(id: id, text: text, point: mapping.point(for: darts[index].hit), colour: busted ? DartboardColours.red : DartboardColours.green)
+            if let points = replayedPoints, !busted { replayedPoints = points + segment.points }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.2))
+                pops.append(pop)
+                try? await Task.sleep(for: .seconds(1.4))
+                pops.removeAll { $0.id == pop.id }
+            }
+        }
+        if flights.isEmpty {
+            replayedPoints = nil
+            withAnimation(.easeOut(duration: 0.2).delay(0.12)) { dartInHand = true }
+        }
+    }
+
+    // MARK: Accessibility
+
+    /// VoiceOver access to the board: what is on it, and throw actions on your turn.
+    private var boardAccessibility: some View {
+        Color.clear
+            .accessibilityElement()
+            .accessibilityLabel(darts.isEmpty ? "Dartboard" : "Dartboard. Darts: \(darts.map { DartsBoard.segment(at: $0.hit).spokenName }.joined(separator: ", ")).")
+            .accessibilityHint(canThrow ? "Use the actions to throw a dart." : "")
+            .accessibilityActions {
+                if canThrow {
+                    ForEach(accessibilityTargets, id: \.self) { target in
+                        Button("Throw at \(target.spokenName)") { throwAt(target) }
+                    }
+                }
+            }
     }
 
     private func throwAt(_ segment: DartsBoard.Segment) {
@@ -414,219 +987,32 @@ public struct DartsThrowView: View {
 
     private var accessibilityTargets: [DartsBoard.Segment] {
         var targets: [DartsBoard.Segment] = []
-        if let suggestedTarget { targets.append(suggestedTarget) }
+        if let checkout { targets.append(checkout.segment) }
         for target in [DartsBoard.Segment(ring: .treble, number: 20), .init(ring: .treble, number: 19), .init(ring: .bull, number: 25), .init(ring: .single, number: 20)]
         where !targets.contains(target) {
             targets.append(target)
         }
         return targets
     }
-
-    private var accessibilityDescription: String {
-        guard !darts.isEmpty else { return "Dartboard" }
-        let spoken = darts.map { DartsBoard.segment(at: $0.hit).spokenName }
-        return "Dartboard. Darts: \(spoken.joined(separator: ", "))."
-    }
 }
 
-/// A dart drawn pointing up: steel point, slate barrel with Ember grip bands, a thin shaft
-/// and flights in the thrower's colour. Our own drawing, sized by its frame.
-private struct ThrowingDart: View {
-    let flights: Color
-
-    var body: some View {
-        Canvas { context, size in
-            let w = size.width, h = size.height, mid = w / 2
-            func bar(_ top: CGFloat, _ bottom: CGFloat, width: CGFloat) -> Path {
-                Path(roundedRect: CGRect(x: mid - width / 2, y: h * top, width: width, height: h * (bottom - top)), cornerRadius: width / 2)
-            }
-            var point = Path()
-            point.move(to: CGPoint(x: mid, y: 0))
-            point.addLine(to: CGPoint(x: mid + w * 0.05, y: h * 0.24))
-            point.addLine(to: CGPoint(x: mid - w * 0.05, y: h * 0.24))
-            point.closeSubpath()
-            context.fill(point, with: .color(Color(white: 0.82)))
-
-            var fins = Path()
-            fins.move(to: CGPoint(x: mid, y: h * 0.62))
-            fins.addLine(to: CGPoint(x: w, y: h * 0.9))
-            fins.addLine(to: CGPoint(x: w * 0.92, y: h))
-            fins.addLine(to: CGPoint(x: mid, y: h * 0.93))
-            fins.addLine(to: CGPoint(x: w * 0.08, y: h))
-            fins.addLine(to: CGPoint(x: 0, y: h * 0.9))
-            fins.closeSubpath()
-            context.fill(fins, with: .color(flights))
-            context.stroke(fins, with: .color(.black.opacity(0.35)), lineWidth: max(0.5, w * 0.03))
-
-            context.fill(bar(0.56, 0.98, width: w * 0.1), with: .color(Color(white: 0.3)))
-            context.fill(bar(0.22, 0.6, width: w * 0.3), with: .color(Color(red: 0.24, green: 0.27, blue: 0.36)))
-            for band in [0.32, 0.4, 0.48] {
-                context.fill(bar(band, band + 0.035, width: w * 0.3), with: .color(RelayTheme.disc(.one)))
-            }
-        }
-        .shadow(color: .black.opacity(0.35), radius: 2, y: 1.5)
-    }
-}
-
-/// Three slots for the darts of a visit, then the visit total. Always laid out (empty
-/// before the first dart) so nothing below it moves, and it catches up with a new dart
-/// only once that dart has landed on the board.
-public struct DartsVisitStrip: View {
-    let latest: Darts.VisitProgress?
-    let colour: Color
-    @State private var shown: Darts.VisitProgress?
-    @State private var changes = 0
-
-    public init(progress: Darts.VisitProgress?, colour: Color) {
-        latest = progress
-        self.colour = colour
-        _shown = State(initialValue: progress)
-    }
-
-    private var darts: [Darts.ScoredDart] { shown?.darts ?? [] }
-
-    public var body: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<Darts.dartsPerVisit, id: \.self) { index in
-                Text(index < darts.count ? darts[index].segment.shortName : "–")
-                    .font(.subheadline.weight(.bold).monospacedDigit())
-                    .foregroundStyle(index < darts.count ? RelayTheme.textPrimary : RelayTheme.textSecondary)
-                    .frame(minWidth: 44)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(index < darts.count ? colour.opacity(0.28) : RelayTheme.surface)
-                    )
-            }
-            Spacer(minLength: 4)
-            Text(summary)
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(shown?.result == .bust ? RelayTheme.disc(.one) : RelayTheme.textPrimary)
-        }
-        .onChange(of: latest) { _, new in
-            changes += 1
-            let change = changes
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(DartsThrowView.flightDuration))
-                // A later change may have arrived meanwhile; only the newest one shows.
-                guard change == changes else { return }
-                withAnimation(.easeOut(duration: 0.15)) { shown = new }
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilitySummary)
-    }
-
-    private var summary: String {
-        guard let shown else { return "" }
-        switch shown.result {
-        case .bust: return "Bust"
-        case .finished: return "Checkout!"
-        case .scored: return shown.darts.isEmpty ? "" : "+\(shown.points)"
-        }
-    }
-
-    private var accessibilitySummary: String {
-        guard let shown, !shown.darts.isEmpty else { return "No darts thrown yet this turn" }
-        let names = shown.darts.map(\.segment.spokenName).joined(separator: ", ")
-        switch shown.result {
-        case .bust: return "\(names). Bust, nothing scored."
-        case .finished: return "\(names). Checkout!"
-        case .scored: return "\(names). \(shown.points) points, \(shown.remainingAfter) left."
+/// One-dart finishes, for the "to win" tag.
+public enum DartsCheckout {
+    /// The segment that finishes from `remaining` with one dart, preferring the plainest.
+    public static func oneDartFinish(_ remaining: Int) -> DartsBoard.Segment? {
+        switch remaining {
+        case 50: return DartsBoard.Segment(ring: .bull, number: 25)
+        case 25: return DartsBoard.Segment(ring: .outerBull, number: 25)
+        case 1...20: return DartsBoard.Segment(ring: .single, number: remaining)
+        case 21...40 where remaining.isMultiple(of: 2): return DartsBoard.Segment(ring: .double, number: remaining / 2)
+        case 21...60 where remaining.isMultiple(of: 3): return DartsBoard.Segment(ring: .treble, number: remaining / 3)
+        default: return nil
         }
     }
 }
 
-/// A whole number that counts to its new value (201, 200, 199 … 141) instead of
-/// morphing digit by digit, which can flash numbers that were never the score.
-private struct CountingNumber: View, Animatable {
-    var value: Double
-
-    nonisolated var animatableData: Double {
-        get { value }
-        set { value = newValue }
-    }
-
-    var body: some View {
-        Text("\(Int(value.rounded()))")
-    }
-}
-
-/// Remaining scores for both players, with whose turn it is and the round.
-public struct DartsScoreboard: View {
-    let state: Darts.State
-    let localSeat: Seat?
-    /// Points scored so far in the visit being thrown, shown as a live preview.
-    let livePreview: (seat: Seat, remaining: Int)?
-    let series: SeriesTally
-    @Environment(\.seatPalette) private var palette
-
-    public init(state: Darts.State, localSeat: Seat?, livePreview: (seat: Seat, remaining: Int)? = nil, series: SeriesTally = .empty) {
-        self.state = state
-        self.localSeat = localSeat
-        self.livePreview = livePreview
-        self.series = series
-    }
-
-    public var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 10) {
-                player(.one)
-                player(.two)
-            }
-            Text(roundText)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(RelayTheme.textSecondary)
-        }
-    }
-
-    private var roundText: String {
-        var text = "Round \(state.round) of \(state.configuration.rounds)"
-        if let localSeat, series.gamesPlayed > 0 {
-            text += " · Record \(series.wins(for: localSeat))–\(series.wins(for: localSeat.opponent))"
-        }
-        return text
-    }
-
-    private func name(_ seat: Seat) -> String {
-        guard let localSeat else { return palette.name(seat) }
-        return seat == localSeat ? "You" : "Them"
-    }
-
-    private func remaining(_ seat: Seat) -> Int {
-        if let livePreview, livePreview.seat == seat { return livePreview.remaining }
-        return state.remaining(for: seat)
-    }
-
-    private func player(_ seat: Seat) -> some View {
-        let toAct = state.outcome.seatToAct == seat
-        return VStack(spacing: 2) {
-            HStack(spacing: 6) {
-                DiscView(seat: seat).frame(width: 14, height: 14)
-                Text(name(seat))
-                    .font(.subheadline.weight(toAct ? .bold : .regular))
-                    .foregroundStyle(toAct ? RelayTheme.textPrimary : RelayTheme.textSecondary)
-            }
-            CountingNumber(value: Double(remaining(seat)))
-                .font(.system(size: 30, weight: .heavy, design: .rounded).monospacedDigit())
-                .foregroundStyle(RelayTheme.textPrimary)
-                // Count down as the dart hits the board, not when it leaves the hand.
-                .animation(.easeOut(duration: 0.45).delay(DartsThrowView.flightDuration), value: remaining(seat))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(toAct ? palette.colour(seat).opacity(0.22) : RelayTheme.surface)
-        )
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(name(seat)): \(remaining(seat)) left")
-        .accessibilityAddTraits(toAct ? .isSelected : [])
-    }
-}
-
-/// Static art for a Darts message bubble: the board with the latest visit's darts and
-/// both players' remaining scores (no names, D-016).
+/// Static art for a Darts message bubble: the board on the wall with the latest visit's
+/// darts, and a trophy over it once the game is won.
 public struct DartsBubbleArt: View {
     let state: Darts.State
     let palette: SeatPalette
@@ -637,35 +1023,26 @@ public struct DartsBubbleArt: View {
     }
 
     public var body: some View {
-        HStack(spacing: 14) {
+        ZStack {
+            WoodWall()
             DartsBoardView(darts: lastVisitDarts, animatesDarts: false)
-                .frame(width: 190, height: 190)
-            VStack(spacing: 12) {
-                score(.one)
-                score(.two)
+                .frame(width: 196, height: 196)
+                .shadow(color: .black.opacity(0.5), radius: 6, y: 4)
+            if state.outcome.winner != nil {
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 78))
+                    .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.1))
+                    .shadow(color: .black.opacity(0.5), radius: 4, y: 3)
             }
         }
-        .padding(16)
         .frame(width: 300, height: 225)
-        .background(LinearGradient(colors: [RelayTheme.surface, RelayTheme.background], startPoint: .top, endPoint: .bottom))
+        .clipped()
         .environment(\.seatPalette, palette)
     }
 
     private var lastVisitDarts: [PlacedDart] {
         guard let visit = state.lastVisit else { return [] }
         return visit.darts.enumerated().map { PlacedDart(id: $0.offset, hit: $0.element.hit, seat: visit.seat) }
-    }
-
-    private func score(_ seat: Seat) -> some View {
-        VStack(spacing: 2) {
-            DiscView(seat: seat).frame(width: 16, height: 16)
-            Text("\(state.remaining(for: seat))")
-                .font(.system(size: 26, weight: .heavy, design: .rounded).monospacedDigit())
-                .foregroundStyle(RelayTheme.textPrimary)
-        }
-        .frame(width: 70)
-        .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(palette.colour(seat).opacity(0.22)))
     }
 }
 #endif

@@ -484,7 +484,8 @@ struct DartsConversationTests {
             Issue.record("challenger throws first")
             return
         }
-        let first = try throwVisit([t20, t20, s1], on: ava, in: fresh)
+        // 101 - (60 + 20 + 1) = 20.
+        let first = try throwVisit([t20, dart(.init(ring: .single, number: 20)), s1], on: ava, in: fresh)
         #expect(first.caption.subcaption == "Your turn")
         chat.insertAndSend(first, from: ava)
 
@@ -492,7 +493,7 @@ struct DartsConversationTests {
         #expect(benTurn.mode == .yourTurn)
         #expect(benTurn.localSeat == .two)
         guard case .darts(let seen) = benTurn.snapshot else { Issue.record("expected darts"); return }
-        #expect(seen.match.state.remaining(for: .one) == 80)
+        #expect(seen.match.state.remaining(for: .one) == 20)
         #expect(benTurn.dartsProgress?.darts.isEmpty == true)
     }
 
@@ -528,14 +529,14 @@ struct DartsConversationTests {
         chat.insertAndSend(try throwVisit([s1, s1, s1], on: ava, in: fresh), from: ava)
 
         let benTurn = try session(chat.open(chat.last, on: ben))
-        let staged = try throwVisit([t20, t20, t20], on: ben, in: benTurn)
+        let staged = try throwVisit([t20, s1, s1], on: ben, in: benTurn)
         ben.controller.didInsert(staged)
         ben.controller.didCancelSending(url: staged.url)
 
         // Reopening Ava's bubble: Ben's turn again, with his three darts still committed.
         let again = try session(chat.open(chat.last, on: ben))
         #expect(again.mode == .yourTurn)
-        #expect(again.draft == .darts(Darts.Action(hits: [t20, t20, t20])))
+        #expect(again.draft == .darts(Darts.Action(hits: [t20, s1, s1])))
         #expect(again.dartsProgress?.isComplete == true)
         #expect(throws: ControllerError.visitAlreadyComplete) { try ben.controller.throwDart(s1, in: again) }
         // The only thing he can send is the same visit.
@@ -558,8 +559,8 @@ struct DartsConversationTests {
         let chat = Conversation()
         guard case .play(let fresh) = ava.controller.startMatch(game: Darts.gameID) else { return }
         let miss = Darts.Hit(x: 0, y: 2_500)
-        // 201: Ava 180 → 21, Ben misses, Ava 1 + 20 = checkout.
-        chat.insertAndSend(try throwVisit([t20, t20, t20], on: ava, in: fresh), from: ava)
+        // 101: Ava 60 + 20 = 80 → 21, Ben misses, Ava 1 + 20 = checkout.
+        chat.insertAndSend(try throwVisit([t20, dart(.init(ring: .single, number: 20)), miss], on: ava, in: fresh), from: ava)
         chat.insertAndSend(try throwVisit([miss, miss, miss], on: ben, in: try session(chat.open(chat.last, on: ben))), from: ben)
         let finish = try throwVisit([s1, dart(.init(ring: .single, number: 20))], on: ava, in: try session(chat.open(chat.last, on: ava)))
         #expect(finish.caption.subcaption == "Game over · checked out!")

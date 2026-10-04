@@ -100,7 +100,25 @@ public struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// "You (Ember) vs Them (Tide)" with whose turn it is.
+/// Chunky yellow game button with dark capitals, for the darts table.
+public struct GameButtonStyle: ButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 16, weight: .black, design: .rounded))
+            .textCase(.uppercase)
+            .foregroundStyle(Color(white: 0.08))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 11)
+            .background(Capsule().fill(Color(red: 1.0, green: 0.86, blue: 0.1)))
+            .shadow(color: .black.opacity(0.4), radius: 3, y: 2)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+/// "You (Red) vs Them (Yellow)" with whose turn it is.
 public struct PlayersHeader: View {
     let localSeat: Seat?
     let toAct: Seat?

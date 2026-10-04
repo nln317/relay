@@ -18,10 +18,11 @@ public enum Darts: GameRules {
         /// Rounds before the game is decided on the lower score. A round is one visit each.
         public var rounds: Int
 
-        public static let standard = Configuration(startingScore: 201, rounds: 10)
+        /// 101, the quick game the classic iMessage darts plays (D-031).
+        public static let standard = Configuration(startingScore: 101, rounds: 10)
         public static let presets: [Configuration] = [
-            Configuration(startingScore: 101, rounds: 6),
             standard,
+            Configuration(startingScore: 201, rounds: 10),
             Configuration(startingScore: 301, rounds: 12),
         ]
 

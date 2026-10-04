@@ -131,14 +131,7 @@ struct NoticeBanner: View {
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(RelayTheme.surface))
     }
 
-    private var text: String {
-        switch notice {
-        case .openedOlderTurn(let turn):
-            "That was move \(turn). Showing the latest position."
-        case .historyDiverged:
-            "Two different versions of this game were sent. Showing the first one received."
-        }
-    }
+    private var text: String { notice.text }
 }
 
 /// End-of-game card: who won, how long it took, and one obvious next action.
@@ -217,41 +210,38 @@ public struct ResultPanel: View {
     }
 }
 
-/// Darts inside a conversation: scores, the board to throw at, this visit's darts.
+/// Darts inside a conversation, on the full-screen darts table.
 struct DartsPlayContent: View {
     let session: PlaySession
     let match: Match<Darts>
     let onInput: (PlayInput) -> Void
     let onRematch: () -> Void
     let onNewGame: () -> Void
-    @Environment(\.seatPalette) private var palette
 
     var body: some View {
-        VStack(spacing: 12) {
-            DartsScoreboard(state: match.state, localSeat: session.localSeat, livePreview: livePreview, series: series)
-            ForEach(Array(session.notices.enumerated()), id: \.offset) { _, notice in
-                NoticeBanner(notice: notice)
-            }
-            DartsThrowView(
-                darts: boardDarts,
-                seat: session.localSeat,
-                canThrow: canThrow,
-                suggestedTarget: DartsBot(difficulty: .sharp).target(remaining: livePreview?.remaining ?? match.state.remaining(for: session.localSeat)),
-                onThrow: { onInput(.dart($0)) }
-            )
-            .padding(.horizontal, 8)
-            DartsVisitStrip(progress: stripProgress?.progress, colour: palette.colour(stripProgress?.seat ?? session.localSeat))
-                .padding(.horizontal, 4)
-            footer
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(RelayTheme.background)
+        DartsTable(
+            state: match.state,
+            localSeat: session.localSeat,
+            thrower: session.localSeat,
+            canThrow: canThrow,
+            darts: boardDarts,
+            visit: shownVisit,
+            livePreview: livePreview,
+            dartsLeft: dartsLeft,
+            banner: banner,
+            winner: match.outcome.winner,
+            replaysDarts: replaysOpponentVisit,
+            notices: session.notices.map(\.text),
+            onThrow: { onInput(.dart($0)) },
+            menuItems: {
+                if match.outcome.isFinished, session.knownRematch == nil {
+                    Button("Rematch", systemImage: "arrow.counterclockwise", action: onRematch)
+                }
+                Button("New game", systemImage: "plus", action: onNewGame)
+            },
+            footer: { footer }
+        )
         .task(id: match.turnNumber) { announceOpponentVisit() }
-    }
-
-    private var series: SeriesTally {
-        match.outcome.isFinished ? match.header.series.recording(match.outcome) : match.header.series
     }
 
     /// This turn's darts so far (committed in the ledger), when it is our turn.
@@ -270,23 +260,33 @@ struct DartsPlayContent: View {
         return !(ownProgress?.isComplete ?? false)
     }
 
+    private var dartsLeft: Int {
+        guard case .yourTurn = session.mode else { return 0 }
+        return Darts.dartsPerVisit - (ownProgress?.darts.count ?? 0)
+    }
+
     private var livePreview: (seat: Seat, remaining: Int)? {
         if let ownProgress, !ownProgress.darts.isEmpty { return (session.localSeat, ownProgress.remainingAfter) }
         if let pendingVisit { return (pendingVisit.seat, pendingVisit.remainingAfter) }
         return nil
     }
 
-    /// What the strip under the board describes, and whose colour it wears.
-    private var stripProgress: (progress: Darts.VisitProgress, seat: Seat)? {
-        if let ownProgress, !ownProgress.darts.isEmpty { return (ownProgress, session.localSeat) }
-        if let pendingVisit { return (Darts.VisitProgress(pendingVisit), pendingVisit.seat) }
-        if let last = match.state.lastVisit { return (Darts.VisitProgress(last), last.seat) }
-        return nil
+    /// How the darts on the board scored.
+    private var shownVisit: Darts.VisitProgress? {
+        if let ownProgress, !ownProgress.darts.isEmpty { return ownProgress }
+        if let pendingVisit { return Darts.VisitProgress(pendingVisit) }
+        return match.state.lastVisit.map { Darts.VisitProgress($0) }
+    }
+
+    /// Opening the other player's visit flies their darts in first.
+    private var replaysOpponentVisit: Bool {
+        guard case .yourTurn = session.mode, ownProgress?.darts.isEmpty ?? true else { return false }
+        return match.state.lastVisit?.seat == session.localSeat.opponent
     }
 
     private var boardDarts: [PlacedDart] {
         // Ids are per turn, so a dart keeps its identity from thrown to staged, and a new
-        // visit's darts animate in rather than slide from the old ones.
+        // visit's darts fly in rather than slide from the old ones.
         let thisTurn = match.turnNumber * 10
         if let ownProgress, !ownProgress.darts.isEmpty {
             return ownProgress.darts.enumerated().map { PlacedDart(id: thisTurn + $0.offset, hit: $0.element.hit, seat: session.localSeat) }
@@ -298,41 +298,43 @@ struct DartsPlayContent: View {
         return last.darts.enumerated().map { PlacedDart(id: thisTurn - 10 + $0.offset, hit: $0.element.hit, seat: last.seat) }
     }
 
+    private var banner: DartsBanner? {
+        switch session.mode {
+        case .yourTurn: return nil
+        case .waitingForOpponent: return .info("Waiting for opponent...")
+        case .readyToSend: return .info("Tap send to finish your turn")
+        case .finished:
+            switch match.outcome {
+            case .won(let winner): return winner == session.localSeat ? .celebration("You won!") : .info("You lost")
+            case .draw: return .info("Draw")
+            case .inProgress: return nil
+            }
+        }
+    }
+
     @ViewBuilder
     private var footer: some View {
         switch session.mode {
         case .yourTurn:
             if let ownProgress, ownProgress.isComplete {
                 Button("Send your darts") { onInput(.sendCommitted) }
-                    .buttonStyle(PrimaryButtonStyle())
+                    .buttonStyle(GameButtonStyle())
                     .accessibilityHint("Puts the darts you already threw back in the message box")
-            } else {
-                // The strip counts the darts; this line stays put while throwing.
-                StatusLine(symbol: "hand.draw", text: "Swipe the dart up at the board.")
             }
-        case .waitingForOpponent:
-            StatusLine(symbol: "hourglass", text: "Their throw. Their reply will show up in this chat.")
-        case .readyToSend:
-            StatusLine(symbol: "arrow.up.circle", text: "Your darts are in the message box. Tap send.")
+        case .waitingForOpponent, .readyToSend:
+            EmptyView()
         case .finished:
-            ResultPanel(
-                outcome: match.outcome,
-                localSeat: session.localSeat,
-                turns: match.turnNumber,
-                detail: resultDetail,
-                rematchKnown: session.knownRematch != nil,
-                onRematch: onRematch,
-                onNewGame: onNewGame
-            )
+            if session.knownRematch != nil {
+                Text("Rematch started. Open the newest game bubble.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+            } else {
+                Button("Rematch", action: onRematch)
+                    .buttonStyle(GameButtonStyle())
+                    .accessibilityHint("Starts a new game against the same player")
+            }
         }
-    }
-
-    private var resultDetail: String {
-        guard let last = match.state.lastVisit else { return "" }
-        if last.result == .finished {
-            return "Checked out from \(last.remainingBefore) in round \((match.state.visits.count - 1) / 2 + 1)"
-        }
-        return "Fewest points left after \(match.state.configuration.rounds) rounds"
     }
 
     private func announceOpponentVisit() {
@@ -340,6 +342,17 @@ struct DartsPlayContent: View {
         let darts = last.darts.map(\.segment.spokenName).joined(separator: ", ")
         let result = last.result == .bust ? "Bust." : "\(last.points) points, \(last.remainingAfter) left."
         AccessibilityNotification.Announcement("They threw \(darts). \(result)").post()
+    }
+}
+
+extension PlaySession.Notice {
+    var text: String {
+        switch self {
+        case .openedOlderTurn(let turn):
+            "That was move \(turn). Showing the latest position."
+        case .historyDiverged:
+            "Two different versions of this game were sent. Showing the first one received."
+        }
     }
 }
 

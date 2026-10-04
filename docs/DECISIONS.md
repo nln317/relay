@@ -149,5 +149,17 @@ opponent visit too) flies in on a shallow arc, shrinking with distance, and stay
 in the board until the next visit; the scores and visit strip update as it lands. VoiceOver keeps "Throw at treble 20"-style actions. Constants
 live in `DartsAim` and are expected to be tuned after more play.
 
-**D-030 Our own dartboard look.** Standard number order and ring proportions (generic
-sporting layout) in Relay's palette: sand and slate beds, Ember and Tide scoring rings.
+**D-030 Our own dartboard look** (superseded by D-031 on 2026-10-04). Standard number
+order and ring proportions in Relay's palette: sand and slate beds, Ember and Tide rings.
+
+**D-031 Match the classic iMessage games' look first, re-skin later** (Nathan, 2026-10-04:
+"do exactly their style then we'll just wrap ours"). Layout, flow, mechanics and generic
+colours follow GamePigeon as seen in Nathan's screen recordings; every asset is our own
+drawing (procedural wood wall, classic red/green/black/white board, our dart, plaques,
+avatars), with no lifted images, sounds, name or logo and no pixel tracing. Darts is a
+full-screen table: wood wall, big board at the top, a swaying dart below it, darts left
+top left, menu top right, avatars and 3-digit score plaques in the bottom corners, a
+"N to win" tag with the finishing segment lit, a points pop where each dart lands, the
+other player's visit replayed on opening, and "WAITING FOR OPPONENT..." / "YOU WON!"
+banners. Players are red and yellow. Darts now starts at 101 by default (201 and 301
+remain presets). The visual layer is kept separate so the later re-skin is a swap.

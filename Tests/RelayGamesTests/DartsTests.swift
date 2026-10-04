@@ -13,7 +13,10 @@ private func dartsHeader(firstSeat: Seat = .one) -> MatchHeader {
     MatchHeader(gameID: Darts.gameID, rulesVersion: Darts.rulesVersion, firstSeat: firstSeat)
 }
 
-private func dartsMatch(_ visits: [[Darts.Hit]], configuration: Darts.Configuration = .standard) throws -> Match<Darts> {
+/// Most rules tests count down from 201, which leaves room for big visits.
+private let twoOhOne = Darts.Configuration(startingScore: 201, rounds: 10)
+
+private func dartsMatch(_ visits: [[Darts.Hit]], configuration: Darts.Configuration = twoOhOne) throws -> Match<Darts> {
     try Match<Darts>.replay(header: dartsHeader(), configuration: configuration, actions: visits.map { Darts.Action(hits: $0) })
 }
 
