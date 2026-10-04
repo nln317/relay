@@ -1,0 +1,103 @@
+# XcodeGen spec. Generate the project with `xcodegen generate` (see README).
+# The generated Relay.xcodeproj is committed too, so XcodeGen is optional.
+name: Relay
+options:
+  bundleIdPrefix: dev.relay
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Set your team in Xcode (Signing & Capabilities) or here. Left empty on purpose.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    # App targets use Swift 5 mode with complete concurrency checking as warnings;
+    # RelayKit itself builds in Swift 6 mode (docs/DECISIONS.md, D-011).
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    TARGETED_DEVICE_FAMILY: "1"
+packages:
+  RelayKit:
+    path: .
+targets:
+  Relay:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - "*.entitlements"
+    dependencies:
+      - target: RelayMessagesExtension
+      - package: RelayKit
+        product: RelayCore
+      - package: RelayKit
+        product: RelayGames
+      - package: RelayKit
+        product: RelayAnalytics
+      - package: RelayKit
+        product: RelayUI
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Relay
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: App/Relay.entitlements
+      properties:
+        com.apple.security.application-groups: [group.dev.relay.shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.relay.Relay
+  RelayMessagesExtension:
+    type: app-extension.messages
+    platform: iOS
+    sources:
+      - path: MessagesExtension
+        excludes:
+          - "*.entitlements"
+    dependencies:
+      - sdk: Messages.framework
+      - package: RelayKit
+        product: RelayCore
+      - package: RelayKit
+        product: RelayGames
+      - package: RelayKit
+        product: RelayMessages
+      - package: RelayKit
+        product: RelayAnalytics
+      - package: RelayKit
+        product: RelayUI
+    info:
+      path: MessagesExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Relay
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.message-payload-provider
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).MessagesViewController
+    entitlements:
+      path: MessagesExtension/RelayMessagesExtension.entitlements
+      properties:
+        com.apple.security.application-groups: [group.dev.relay.shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.relay.Relay.MessagesExtension
+schemes:
+  Relay:
+    build:
+      targets:
+        Relay: all
+        RelayMessagesExtension: all
+    test:
+      gather_coverage_data: true
