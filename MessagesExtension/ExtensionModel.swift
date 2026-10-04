@@ -31,6 +31,8 @@ final class ExtensionModel {
     /// Delay between the disc landing and collapsing to the compose field, so the
     /// player sees their move land before the extension gets out of the way.
     @ObservationIgnored private let insertDelay: Duration = .milliseconds(450)
+    /// The screen before an optimistic move, restored if inserting fails.
+    @ObservationIgnored private var screenBeforeInsert: ConversationScreen?
 
     init() {
         controller = ConversationController(store: FileLedgerStore(fileURL: SharedStorage.ledgerURL), analytics: analytics)
@@ -72,6 +74,7 @@ final class ExtensionModel {
         guard !isWorking, case .play(let session) = screen else { return }
         do {
             let outgoing = try controller.prepareMove(.fourInARow(.init(column: column)), in: session, senderToken: senderToken)
+            screenBeforeInsert = screen
             // Show the move landing immediately; the board is now read-only until
             // the message is sent or the draft is reopened.
             screen = .play(PlaySession(
@@ -93,6 +96,14 @@ final class ExtensionModel {
 
     func markInserted(_ outgoing: OutgoingMessage) {
         errorText = nil
+        screenBeforeInsert = nil
+    }
+
+    /// Messages refused the insert: put the board back so the player can try again.
+    func insertFailed(_ message: String) {
+        errorText = message
+        if let previous = screenBeforeInsert { screen = previous }
+        screenBeforeInsert = nil
     }
 
     private func begin(_ start: ConversationController.NewMatch) {

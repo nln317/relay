@@ -59,6 +59,10 @@ final class MessagesViewController: MSMessagesAppViewController {
     override func didStartSending(_ message: MSMessage, conversation: MSConversation) {
         super.didStartSending(message, conversation: conversation)
         model.controller.didStartSending(url: message.url)
+        // Refresh from the ledger so the screen moves from "ready to send" to "their move".
+        if model.currentMatchID != nil {
+            model.screen = model.controller.screen(for: OpenedMessage(url: message.url, senderIsLocal: true, isPending: false))
+        }
     }
 
     override func didCancelSending(_ message: MSMessage, conversation: MSConversation) {
@@ -100,7 +104,7 @@ final class MessagesViewController: MSMessagesAppViewController {
 
     private func insert(_ outgoing: OutgoingMessage) {
         guard let conversation = activeConversation else {
-            model.errorText = "Messages isn't ready yet. Try again."
+            model.insertFailed("Messages isn't ready yet. Try again.")
             return
         }
         let session = sessions[outgoing.snapshot.matchID] ?? MSSession()
@@ -126,7 +130,7 @@ final class MessagesViewController: MSMessagesAppViewController {
                 guard let self else { return }
                 self.model.isWorking = false
                 if let error {
-                    self.model.errorText = "Couldn't add the move to the message box (\(error.localizedDescription))."
+                    self.model.insertFailed("Couldn't add the move to the message box (\(error.localizedDescription)).")
                     return
                 }
                 self.model.controller.didInsert(outgoing)
