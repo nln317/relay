@@ -214,6 +214,9 @@ struct DartsBotTests {
         }
         let up = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.0), velocity: (0, -3.9)))
         #expect(DartsBoard.segment(at: hit(up)).number == 20)
+        // A feeble flick falls short of the board.
+        let feeble = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.2), velocity: (0, -0.6)))
+        #expect(DartsBoard.segment(at: hit(feeble)) == .miss)
     }
 
     @Test func wildFlicksScatterMore() {

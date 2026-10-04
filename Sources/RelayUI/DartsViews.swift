@@ -468,56 +468,87 @@ private struct ThrowingDart: View {
     }
 }
 
-/// Three slots for the darts of a visit, then the visit total.
+/// Three slots for the darts of a visit, then the visit total. Always laid out (empty
+/// before the first dart) so nothing below it moves, and it catches up with a new dart
+/// only once that dart has landed on the board.
 public struct DartsVisitStrip: View {
-    let progress: Darts.VisitProgress
+    let latest: Darts.VisitProgress?
     let colour: Color
+    @State private var shown: Darts.VisitProgress?
+    @State private var changes = 0
 
-    public init(progress: Darts.VisitProgress, colour: Color) {
-        self.progress = progress
+    public init(progress: Darts.VisitProgress?, colour: Color) {
+        latest = progress
         self.colour = colour
+        _shown = State(initialValue: progress)
     }
+
+    private var darts: [Darts.ScoredDart] { shown?.darts ?? [] }
 
     public var body: some View {
         HStack(spacing: 8) {
             ForEach(0..<Darts.dartsPerVisit, id: \.self) { index in
-                Text(index < progress.darts.count ? progress.darts[index].segment.shortName : "–")
+                Text(index < darts.count ? darts[index].segment.shortName : "–")
                     .font(.subheadline.weight(.bold).monospacedDigit())
-                    .foregroundStyle(index < progress.darts.count ? RelayTheme.textPrimary : RelayTheme.textSecondary)
+                    .foregroundStyle(index < darts.count ? RelayTheme.textPrimary : RelayTheme.textSecondary)
                     .frame(minWidth: 44)
                     .padding(.vertical, 6)
                     .background(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(index < progress.darts.count ? colour.opacity(0.28) : RelayTheme.surface)
+                            .fill(index < darts.count ? colour.opacity(0.28) : RelayTheme.surface)
                     )
             }
             Spacer(minLength: 4)
             Text(summary)
                 .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(progress.result == .bust ? RelayTheme.disc(.one) : RelayTheme.textPrimary)
+                .foregroundStyle(shown?.result == .bust ? RelayTheme.disc(.one) : RelayTheme.textPrimary)
         }
-        // Read out the dart when it hits the board, not when it leaves the hand.
-        .animation(.easeOut(duration: 0.15).delay(DartsThrowView.flightDuration), value: progress)
+        .onChange(of: latest) { _, new in
+            changes += 1
+            let change = changes
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(DartsThrowView.flightDuration))
+                // A later change may have arrived meanwhile; only the newest one shows.
+                guard change == changes else { return }
+                withAnimation(.easeOut(duration: 0.15)) { shown = new }
+            }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
     }
 
     private var summary: String {
-        switch progress.result {
-        case .bust: "Bust"
-        case .finished: "Checkout!"
-        case .scored: progress.darts.isEmpty ? "" : "+\(progress.points)"
+        guard let shown else { return "" }
+        switch shown.result {
+        case .bust: return "Bust"
+        case .finished: return "Checkout!"
+        case .scored: return shown.darts.isEmpty ? "" : "+\(shown.points)"
         }
     }
 
     private var accessibilitySummary: String {
-        guard !progress.darts.isEmpty else { return "No darts thrown yet this turn" }
-        let names = progress.darts.map(\.segment.spokenName).joined(separator: ", ")
-        switch progress.result {
+        guard let shown, !shown.darts.isEmpty else { return "No darts thrown yet this turn" }
+        let names = shown.darts.map(\.segment.spokenName).joined(separator: ", ")
+        switch shown.result {
         case .bust: return "\(names). Bust, nothing scored."
         case .finished: return "\(names). Checkout!"
-        case .scored: return "\(names). \(progress.points) points, \(progress.remainingAfter) left."
+        case .scored: return "\(names). \(shown.points) points, \(shown.remainingAfter) left."
         }
+    }
+}
+
+/// A whole number that counts to its new value (201, 200, 199 … 141) instead of
+/// morphing digit by digit, which can flash numbers that were never the score.
+private struct CountingNumber: View, Animatable {
+    var value: Double
+
+    nonisolated var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        Text("\(Int(value.rounded()))")
     }
 }
 
@@ -576,12 +607,11 @@ public struct DartsScoreboard: View {
                     .font(.subheadline.weight(toAct ? .bold : .regular))
                     .foregroundStyle(toAct ? RelayTheme.textPrimary : RelayTheme.textSecondary)
             }
-            Text("\(remaining(seat))")
+            CountingNumber(value: Double(remaining(seat)))
                 .font(.system(size: 30, weight: .heavy, design: .rounded).monospacedDigit())
                 .foregroundStyle(RelayTheme.textPrimary)
-                .contentTransition(.numericText(countsDown: true))
                 // Count down as the dart hits the board, not when it leaves the hand.
-                .animation(.snappy.delay(DartsThrowView.flightDuration), value: remaining(seat))
+                .animation(.easeOut(duration: 0.45).delay(DartsThrowView.flightDuration), value: remaining(seat))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)

@@ -240,10 +240,8 @@ struct DartsPlayContent: View {
                 onThrow: { onInput(.dart($0)) }
             )
             .padding(.horizontal, 8)
-            if let shown = stripProgress {
-                DartsVisitStrip(progress: shown.progress, colour: palette.colour(shown.seat))
-                    .padding(.horizontal, 4)
-            }
+            DartsVisitStrip(progress: stripProgress?.progress, colour: palette.colour(stripProgress?.seat ?? session.localSeat))
+                .padding(.horizontal, 4)
             footer
         }
         .padding(16)
@@ -308,9 +306,8 @@ struct DartsPlayContent: View {
                 Button("Send your darts") { onInput(.sendCommitted) }
                     .buttonStyle(PrimaryButtonStyle())
                     .accessibilityHint("Puts the darts you already threw back in the message box")
-            } else if let ownProgress, !ownProgress.darts.isEmpty {
-                StatusLine(symbol: "scope", text: "Dart \(ownProgress.darts.count + 1) of \(Darts.dartsPerVisit).")
             } else {
+                // The strip counts the darts; this line stays put while throwing.
                 StatusLine(symbol: "hand.draw", text: "Swipe the dart up at the board.")
             }
         case .waitingForOpponent:

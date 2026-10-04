@@ -26,8 +26,9 @@ public enum DartsAim {
         return (release.x + slope * max(0, release.y - height), height)
     }
 
-    /// Slower than this (board widths per second) and the dart is not thrown.
-    public static let minimumThrowSpeed = 1.0
+    /// Slower than this (board widths per second) and the dart is not thrown. The softest
+    /// throws fall short of the board, so a feeble flick misses low.
+    public static let minimumThrowSpeed = 0.4
     /// Height reached by the softest throw: a little below the board, so it misses.
     public static let lowestReach = 1.05
     /// How much higher each extra board width per second of flick carries the dart.

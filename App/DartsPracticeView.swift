@@ -149,9 +149,7 @@ struct DartsPracticeView: View {
                 suggestedTarget: suggestedTarget,
                 onThrow: { model.throwDart($0) }
             )
-            if let strip {
-                DartsVisitStrip(progress: strip.progress, colour: RelayTheme.disc(strip.seat))
-            }
+            DartsVisitStrip(progress: strip?.progress, colour: RelayTheme.disc(strip?.seat ?? .one))
             if model.match.outcome.isFinished {
                 ResultPanel(
                     outcome: model.match.outcome,
@@ -211,8 +209,8 @@ struct DartsPracticeView: View {
     private var status: String {
         if model.botThrowing { return "Bot is throwing…" }
         guard let toAct else { return "" }
-        let thrown = model.progress?.darts.count ?? 0
+        // The strip under the board counts the darts; this line stays put while throwing.
         let who = model.humanSeat == nil ? "\(RelayTheme.discName(toAct)): " : ""
-        return thrown == 0 ? "\(who)Swipe the dart up at the board." : "\(who)Dart \(thrown + 1) of \(Darts.dartsPerVisit)."
+        return "\(who)Swipe the dart up at the board."
     }
 }
