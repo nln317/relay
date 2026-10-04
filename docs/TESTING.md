@@ -4,9 +4,9 @@ Four evidence categories are kept separate (brief §36). "Tested" without a cate
 
 | Category | Meaning | Current state |
 |---|---|---|
-| AUTOMATED TESTED | `swift test` on RelayKit (unit + integration) | 83 tests passing on Linux (Swift 6.1.3) and macOS (Swift 6.3.3) |
+| AUTOMATED TESTED | `swift test` on RelayKit (unit + integration) | 85 tests passing on Linux (Swift 6.1.3) and macOS (Swift 6.3.3) |
 | SIMULATOR TESTED | Built and exercised in the iOS Simulator | Sender side done on iOS 26.5: app, practice, pick → move → change → cancel → send → reopen. See STATUS.md |
-| REHEARSAL (simulator, no Messages) | Debug-only "Two-phone rehearsal" screen in the app: two controllers with separate ledgers exchange real message URLs (D-021) | See STATUS.md |
+| REHEARSAL (simulator, no Messages) | Debug-only "Two-phone rehearsal" screen in the app: two controllers with separate ledgers exchange real message URLs (D-021) | Receive, win, rematch chain, older bubble, problem screens all pass. See STATUS.md |
 | PHYSICAL DEVICE TESTED | Run on an iPhone | Not yet |
 | TWO-DEVICE MESSAGES TESTED | Two iPhones, two Apple Accounts, real conversation | Not yet |
 

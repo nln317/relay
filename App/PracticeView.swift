@@ -138,7 +138,6 @@ struct PracticeView: View {
                 ResultPanel(
                     outcome: model.match.outcome,
                     localSeat: model.opponent.bot == nil ? nil : .one,
-                    series: model.series,
                     turns: model.match.turnNumber,
                     rematchKnown: false,
                     onRematch: model.playAgain,

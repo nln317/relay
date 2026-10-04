@@ -15,7 +15,7 @@ is tracked separately in TESTING.md. Last updated 2026-10-04 (end of Milestone 1
 | Make and send move | Adjust then send; no undo after send | Tap column → drop → auto-insert → user taps send; reopen staged bubble to change move | PARITY+ | Change-move without re-roll exploits | P0 |
 | Waiting state | "Waiting for opponent" | "Their move" status on own bubble | PARITY | — | P0 |
 | Game-over UX | Winner shown | Pulsing winning line, dimmed others, success haptic, result card | IMPROVED | Themed cards, share | P0 |
-| Rematch | Unverified | One button; alternates first mover; record carried in message; duplicate-rematch guard | IMPROVED | Rivalry Sets | P0 |
+| Rematch | Unverified | One button; alternates first mover; record carried in message; each person keeps their colour (D-024); duplicate-rematch guard | IMPROVED | Rivalry Sets | P0 |
 | Stale / duplicate messages | Unverified | Shows latest known turn; blocks double answers; idempotent | IMPROVED | — | P0 |
 | Malformed / newer-version messages | White screens reported | Specific "damaged" / "update to play" screens, never a crash (fuzzed) | IMPROVED | — | P0 |
 | Draft recovery after termination | Unverified | Ledger keeps staged move; transcript reconciles sends | IMPROVED | — | P0 |

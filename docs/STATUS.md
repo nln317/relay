@@ -7,13 +7,13 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 | Milestone | Status | Why |
 |---|---|---|
 | M0 Research + platform | **PASS** | Benchmark and docs written; app + Messages extension compile in Xcode 26.6 with zero warnings; package tests pass on Linux and macOS. |
-| M1 Four in a Row parity | **PARTIAL** | Full loop implemented and covered by 83 automated tests. Sender side verified in the iOS 26.5 simulator (pick, move, change staged move, cancel, send, reopen own bubble). The receiver side, win/rematch over Messages, and anything on a physical device or between two devices need a second device and account, so they are untested. |
+| M1 Four in a Row parity | **PARTIAL** | Full loop implemented and covered by 85 automated tests. Sender side verified in Messages in the iOS 26.5 simulator. Receiver side, win, rematch chain, older-turn notice and problem screens verified in the simulator through the two-phone rehearsal (same logic and views, no Messages framework). Physical-device and two-device Messages play need a signing team and a second iPhone and account, so they are untested. |
 
 ## Evidence (kept separate, brief §36)
 
 ### Automated tested
-- `swift test` on Linux (Swift 6.1.3, Docker `swift:6.1-noble`): **83 tests passed** (~71 s).
-- `swift test` on macOS 26.4.1 (Swift 6.3.3, Xcode 26.6): **83 tests passed** (~46 s).
+- `swift test` on Linux (Swift 6.1.3, Docker `swift:6.1-noble`): **85 tests passed** (~75 s).
+- `swift test` on macOS 26.4.1 (Swift 6.3.3, Xcode 26.6): **85 tests passed** (~46 s).
 - Suites: rules, randomized oracle (15,000 games, all 69 windows), bot, identifiers, protocol
   (incl. fuzzing), two-device conversation flow (simulated), ledger storage, analytics privacy.
 
@@ -22,7 +22,7 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
   → **BUILD SUCCEEDED, 0 warnings** (after fix 5952a82; the first attempt failed with
   "Multiple commands produce .app" because PRODUCT_NAME was missing).
 
-### Simulator tested (iPhone 17 Pro simulator, iOS 26.5)
+### Simulator tested (iPhone 17 Pro simulator, iOS 26.5; latest round at 56f0277)
 - App launches to home: title, "Play in Messages" steps, practice list.
 - Practice vs Casual bot: moves, bot replies, game to a win; result card ("You win!", 7 moves,
   Rematch), header record "You 1 – 0 Them", winning discs ringed, others dimmed.
@@ -37,7 +37,27 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
   - Sending: bubble in transcript; sheet shows "Waiting for their move".
   - Tapping the sent bubble opens "Their move", board not interactive (fixed in 98dbe18; it
     previously opened in the opponent's seat and allowed a move).
-- Build: 0 warnings including asset catalogs.
+- Build: 0 warnings including asset catalogs. Built bundle ids `dev.relay.Relay` and
+  `dev.relay.Relay.MessagesExtension`, extension `RelayAppGroup = group.dev.relay.shared`
+  (from Config/Relay.xcconfig).
+- Practice: rematch alternates the first mover and keeps the score; pass-and-play to a result
+  ("Ember wins", header "Ember 1 – 0 Tide").
+- Largest accessibility text size (AX3): board, header and home screen usable (home practice
+  rows fixed in 89d57d2). iPhone SE (3rd gen): home, compact picker and board fit.
+
+### Rehearsal tested (simulator, Debug "Two-phone rehearsal", D-021; not Messages evidence)
+- Ava starts and moves; Ben's phone opens the bubble as "Your move" with correct seats and
+  colours; turns alternate to a win.
+- Winner's card "You win!", loser's "They win", win line ringed; record shows as soon as game 1
+  ends (fixed in 56f0277).
+- Loser's rematch: they move first, record carries over (left number = left pill), each person
+  keeps their colour (D-024). A third game started by the other player alternates again.
+- Opening an older bubble shows the latest position with "That was move 5…" and, when a rematch
+  exists, "Rematch already started"; no playable stale board.
+- Damaged message: "This game can't be opened" with a New game button that opens the picker.
+  Newer version: "Update to play this", no button.
+- Five cold launches into Practice showed no stray first move (an earlier one-off sighting is
+  treated as simulator tap timing).
 
 ### Physical device tested
 - None.
@@ -46,9 +66,9 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 - None.
 
 ## Not tested
-- Receiver side: opening a turn sent by another person, older-turn notice, diverged history.
-- Finishing a game and rematching over Messages; no-move rematch challenge.
-- Haptics (simulator has none), VoiceOver, Dynamic Type at large sizes, iOS 17 drag-to-resize.
+- Receiver side inside real Messages (covered only by the rehearsal and automated tests).
+- Finishing a game and rematching over real Messages; diverged history on a device.
+- Haptics (simulator has none), VoiceOver, iOS 17 drag-to-resize, Standard/Sharp bot strength by hand.
 - Anything on a physical iPhone; any real two-person conversation.
 - App Group sharing between app and extension (needs a signing team).
 - Mac/Android recipients (fallback URL is a placeholder domain).
@@ -58,8 +78,8 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 2. **Same Apple Account on two devices** sees its own moves as local on both; may show
    "Their move" on the wrong device. Detected as diverged history at worst.
 3. **Placeholder icons only:** simple original app and iMessage icons (board with two discs), generated locally; final art is M4.
-4. **Placeholder identifiers:** bundle id `dev.relay.*`, App Group `group.dev.relay.shared`,
-   fallback host `relay.invalid`.
+4. **Placeholder identifiers:** bundle id `dev.relay.*` and App Group `group.dev.relay.shared`
+   (override in git-ignored `Config/Local.xcconfig`, D-022); fallback host `relay.invalid`.
 5. **No sound.** Haptics are implemented but unverified.
 6. Staged-draft memory can outlive the compose field (if the user clears it while the
    extension is not running, reopening shows "ready to send" until they pick a move or send).
@@ -67,6 +87,6 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 8. Randomized oracle test takes 50–70 s; fine for CI, slow for quick local runs.
 
 ## Human action required
-See APP_STORE.md. Short list: Apple Developer team for device builds; real bundle id and App
-Group; product name; domain for the fallback URL; app and iMessage icons; two iPhones with two
+See APP_STORE.md. Short list: Apple Developer team, bundle id prefix and App Group, all in one
+file (`Config/Local.xcconfig`); product name; domain for the fallback URL; app and iMessage icons; two iPhones with two
 Apple Accounts for the two-device test.

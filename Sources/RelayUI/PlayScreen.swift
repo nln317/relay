@@ -74,7 +74,7 @@ public struct PlayScreen: View {
         case .readyToSend:
             StatusLine(symbol: "arrow.up.circle", text: "Your move is in the message box. Tap send, or tap another column to change it.")
         case .finished:
-            ResultPanel(outcome: match.outcome, localSeat: session.localSeat, series: seriesIncludingThisGame(match), turns: match.turnNumber, rematchKnown: session.knownRematch != nil, onRematch: onRematch, onNewGame: onNewGame)
+            ResultPanel(outcome: match.outcome, localSeat: session.localSeat, turns: match.turnNumber, rematchKnown: session.knownRematch != nil, onRematch: onRematch, onNewGame: onNewGame)
         }
     }
 }
@@ -115,11 +115,10 @@ struct NoticeBanner: View {
     }
 }
 
-/// End-of-game card: who won, the rematch record, and one obvious next action.
+/// End-of-game card: who won, how long it took, and one obvious next action.
 public struct ResultPanel: View {
     let outcome: GameOutcome
     let localSeat: Seat?
-    let series: SeriesTally
     let turns: Int
     let rematchKnown: Bool
     let onRematch: () -> Void
@@ -127,10 +126,9 @@ public struct ResultPanel: View {
     @State private var appeared = false
     @Environment(\.seatPalette) private var palette
 
-    public init(outcome: GameOutcome, localSeat: Seat?, series: SeriesTally, turns: Int, rematchKnown: Bool, onRematch: @escaping () -> Void, onNewGame: @escaping () -> Void) {
+    public init(outcome: GameOutcome, localSeat: Seat?, turns: Int, rematchKnown: Bool, onRematch: @escaping () -> Void, onNewGame: @escaping () -> Void) {
         self.outcome = outcome
         self.localSeat = localSeat
-        self.series = series
         self.turns = turns
         self.rematchKnown = rematchKnown
         self.onRematch = onRematch
@@ -185,14 +183,9 @@ public struct ResultPanel: View {
         return RelayTheme.textPrimary
     }
 
+    /// The record lives in the players header above, so the card only adds the length.
     private var detail: String {
-        let record: String
-        if let localSeat, series.gamesPlayed > 1 {
-            record = " · Record \(series.wins(for: localSeat))–\(series.wins(for: localSeat.opponent))"
-        } else {
-            record = ""
-        }
-        return "\(turns) moves\(record)"
+        "\(turns) moves"
     }
 }
 #endif
