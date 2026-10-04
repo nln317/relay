@@ -32,9 +32,9 @@ public enum DartsAim {
     /// Height reached by the softest throw: a little below the board, so it misses.
     public static let lowestReach = 1.05
     /// How much higher each extra board width per second of flick carries the dart.
-    /// About 3.1 widths a second (a firm flick) reaches the bull and about 4.5 the
-    /// treble 20. Made slightly heavier after Nathan's first play on device.
-    public static let reachPerSpeed = 0.175
+    /// About 2.9 widths a second (a firm flick) reaches the bull and about 4.2 the
+    /// treble 20. Tuned on device with Nathan: 0.2 felt light, 0.175 too heavy.
+    public static let reachPerSpeed = 0.1875
 
     /// Scatter grows when the flick is wild (much harder than the top of the board
     /// needs), in tenths of a millimetre.

@@ -273,7 +273,7 @@ public struct DartsThrowView: View {
     @Environment(\.seatPalette) private var palette
 
     /// Seconds from release to the dart hitting the board.
-    static let flightDuration = 0.36
+    static let flightDuration = 0.34
     /// Height of the area below the board where the dart is held, as a share of the board.
     private static let handHeight: CGFloat = 0.36
 
