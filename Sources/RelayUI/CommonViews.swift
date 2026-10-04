@@ -46,9 +46,13 @@ struct GameTile: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(RelayTheme.board)
-                HStack(spacing: 3) {
-                    DiscView(seat: .one).frame(width: 18, height: 18)
-                    DiscView(seat: .two).frame(width: 18, height: 18)
+                if game.id == Darts.gameID {
+                    DartsBoardView(darts: [], animatesDarts: false).padding(5)
+                } else {
+                    HStack(spacing: 3) {
+                        DiscView(seat: .one).frame(width: 18, height: 18)
+                        DiscView(seat: .two).frame(width: 18, height: 18)
+                    }
                 }
             }
             .frame(width: 60, height: 60)

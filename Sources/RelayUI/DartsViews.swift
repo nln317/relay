@@ -26,11 +26,14 @@ public struct DartsBoardView: View {
     let darts: [PlacedDart]
     /// Where the player is aiming, while they hold a dart.
     let reticle: Darts.Hit?
+    /// False for still images (bubble art), which render before any animation runs.
+    let animatesDarts: Bool
     @Environment(\.seatPalette) private var palette
 
-    public init(darts: [PlacedDart], reticle: Darts.Hit? = nil) {
+    public init(darts: [PlacedDart], reticle: Darts.Hit? = nil, animatesDarts: Bool = true) {
         self.darts = darts
         self.reticle = reticle
+        self.animatesDarts = animatesDarts
     }
 
     public var body: some View {
@@ -43,10 +46,9 @@ public struct DartsBoardView: View {
                 }
                 .accessibilityHidden(true)
                 ForEach(darts) { dart in
-                    DartMarker(colour: palette.colour(dart.seat))
+                    DartMarker(colour: palette.colour(dart.seat), animates: animatesDarts)
                         .frame(width: side * 0.055, height: side * 0.055)
                         .position(point(for: dart.hit, side: side, scale: scale))
-                        .transition(.asymmetric(insertion: .scale(scale: 3).combined(with: .opacity), removal: .opacity))
                 }
                 if let reticle {
                     Reticle()
@@ -57,7 +59,6 @@ public struct DartsBoardView: View {
             }
             .frame(width: side, height: side)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.easeIn(duration: 0.18), value: darts)
         }
         .aspectRatio(1, contentMode: .fit)
     }
@@ -117,8 +118,16 @@ public struct DartsBoardView: View {
     }
 }
 
+/// A dart's mark on the board. It thuds in where it landed: it starts larger and settles
+/// in place, scaling about its own centre so it never appears to fly across the board.
 private struct DartMarker: View {
     let colour: Color
+    @State private var landed: Bool
+
+    init(colour: Color, animates: Bool) {
+        self.colour = colour
+        _landed = State(initialValue: !animates)
+    }
 
     var body: some View {
         ZStack {
@@ -127,19 +136,31 @@ private struct DartMarker: View {
             Circle().fill(Color.white).frame(width: 3, height: 3)
         }
         .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+        .scaleEffect(landed ? 1 : 2.4)
+        .opacity(landed ? 1 : 0)
+        .onAppear {
+            withAnimation(.easeIn(duration: 0.16)) { landed = true }
+        }
     }
 }
 
+/// White sight with a dark outline, so it reads over the light sand beds as well as the dark ones.
 private struct Reticle: View {
     var body: some View {
         ZStack {
-            Circle().strokeBorder(Color.white, lineWidth: 2)
-            Rectangle().fill(Color.white).frame(width: 2)
+            sight(colour: .black.opacity(0.7), width: 4.5)
+            sight(colour: .white, width: 2)
+        }
+    }
+
+    private func sight(colour: Color, width: CGFloat) -> some View {
+        ZStack {
+            Circle().strokeBorder(colour, lineWidth: width)
+            Rectangle().fill(colour).frame(width: width)
                 .padding(.vertical, -6)
-            Rectangle().fill(Color.white).frame(height: 2)
+            Rectangle().fill(colour).frame(height: width)
                 .padding(.horizontal, -6)
         }
-        .shadow(color: .black.opacity(0.6), radius: 2)
     }
 }
 
@@ -380,7 +401,7 @@ public struct DartsBubbleArt: View {
 
     public var body: some View {
         HStack(spacing: 14) {
-            DartsBoardView(darts: lastVisitDarts)
+            DartsBoardView(darts: lastVisitDarts, animatesDarts: false)
                 .frame(width: 190, height: 190)
             VStack(spacing: 12) {
                 score(.one)
