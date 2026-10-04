@@ -78,9 +78,10 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 - Simulator speed sweep (synthetic touches, 127fec8): soft swipes throw and fall low; the
   board spans roughly 150–1,800 pt/s of synthetic speed, which reads steeper than the owner
   reports on device. Retune only on owner feedback.
-- Rehearsal: scores update after each dart (fixed c80ed1f). The opening replay of the other
-  player's visit did not fly in the rehearsal's phone switch at 127fec8; bcf153b+ lands
-  flights on a timer instead of the animation completion (see Known issues).
+- Rehearsal (b8a5d3e): scores update after each dart; switching phones flies the other
+  player's three darts in with pops and a counting score, then clears the board.
+- Messages (dummy chat): bubbles show the "YOUR TURN" strip; the compact drawer shows the
+  picture, "TAP SEND TO FINISH YOUR TURN" and an OPEN button. Installed on the owner's iPhone.
 
 ### Physical device tested
 - iPhone 17 Pro Max, iOS 26.6.1, free Personal Team (`RELAY_USE_APP_GROUP = NO`): signed device
@@ -112,10 +113,7 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
    second game then stages a second bubble. Same in both App Group modes.
 8. `turn_opened` is also recorded for the sender after `didStartSending` (analytics noise; no sink yet).
 9. Randomized oracle test takes 50–70 s; fine for CI, slow for quick local runs.
-10. **Darts opening replay in the rehearsal** (switching phones) showed the other player's
-    darts already landed instead of flying in, up to 127fec8; the timer-based landing in the
-    next build is meant to fix it and needs re-checking. Real Messages opens the extension
-    fresh, but the receiving replay there is unverified on a device.
+10. **Darts bubble picture:** the darts in the last visit are barely visible at bubble size.
 
 ## Human action required
 See APP_STORE.md. Short list: Apple Developer team, bundle id prefix and App Group, all in one
