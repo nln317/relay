@@ -130,8 +130,8 @@ public struct PlayersHeader: View {
     }
 
     private var seriesLabel: String {
-        guard let localSeat else { return "Series \(series.seatOneWins) to \(series.seatTwoWins)" }
-        return "Rematch record: you \(series.wins(for: localSeat)), them \(series.wins(for: localSeat.opponent))"
+        guard let localSeat else { return "Record \(series.seatOneWins) to \(series.seatTwoWins)" }
+        return "Record: you \(series.wins(for: localSeat)), them \(series.wins(for: localSeat.opponent))"
     }
 
     private func player(_ seat: Seat) -> some View {

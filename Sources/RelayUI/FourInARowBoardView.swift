@@ -131,19 +131,17 @@ public struct FourInARowBoardView: View {
     }
 
     /// VoiceOver reads each column's discs bottom to top, then how much room is left,
-    /// e.g. "Column 3: you, them, you. 3 spaces free".
+    /// e.g. "Column 3: you, them, you. 3 spaces free."
     private func columnLabel(_ column: Int) -> String {
         let filled = state.height(ofColumn: column)
         let free = rows - filled
-        let discs = (0..<filled).compactMap { row -> String? in
-            let cell = FourInARow.Cell(column: column, row: row)
-            guard let seat = state.disc(at: cell) else { return nil }
-            let name = discName(seat)
-            return state.winningCells.contains(cell) ? "\(name), winning" : name
+        let discs = (0..<filled).compactMap { row in
+            state.disc(at: FourInARow.Cell(column: column, row: row)).map(discName)
         }
         let contents = discs.isEmpty ? "empty" : discs.joined(separator: ", ")
         let room = free == 0 ? "full" : free == 1 ? "1 space free" : "\(free) spaces free"
-        return "Column \(column + 1): \(contents). \(room)"
+        let winning = state.winningCells.contains { $0.column == column } ? " Part of the winning line." : ""
+        return "Column \(column + 1): \(contents). \(room).\(winning)"
     }
 
     private func discName(_ seat: Seat) -> String {
