@@ -9,10 +9,10 @@
 /* Begin PBXBuildFile section */
 		034C5F7E4CF7F177CDFE746C /* ExtensionRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D6EC5E7C9AB2D6B938D7E5 /* ExtensionRootView.swift */; };
 		0DFBB2B7B1CD814AE81DF3A4 /* Messages.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C6F2757C78241F4A86393DD4 /* Messages.framework */; };
-		2263A3AE05F6A30FC962D5C7 /* RelayAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 72D2294820EC5C0E0CA84D80 /* RelayAnalytics */; };
+		2263A3AE05F6A30FC962D5C7 /* RelayMessages in Frameworks */ = {isa = PBXBuildFile; productRef = 9C911E4B4059E008B62BDA65 /* RelayMessages */; };
 		22B21C2D66D48FD548A20798 /* RelayMessagesExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 527F62ECB424D779F055D0E7 /* RelayMessagesExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		313B4616286057F632C705F5 /* ExtensionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011F5365E4CC22EE246A9BF7 /* ExtensionModel.swift */; };
-		352DBF938459B8F9127C4ABD /* RelayUI in Frameworks */ = {isa = PBXBuildFile; productRef = A1EB280E4964099E86C502A7 /* RelayUI */; };
+		352DBF938459B8F9127C4ABD /* RelayAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 72D2294820EC5C0E0CA84D80 /* RelayAnalytics */; };
 		4900F6EF78F8F5B2F3228ECA /* RelayCore in Frameworks */ = {isa = PBXBuildFile; productRef = 34A01BA37C866FB0D8B61E8F /* RelayCore */; };
 		57A9572E51CE26FD5C0F223D /* RelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A64E49D47DCE2E8A9E443A6 /* RelayApp.swift */; };
 		65E043351D7771289EF3323C /* RelayGames in Frameworks */ = {isa = PBXBuildFile; productRef = 6D5F02B4462F13E6974C24E0 /* RelayGames */; };
@@ -21,9 +21,11 @@
 		8947F6297413A69C66E5DB75 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ACE6D1D6432624D1C7C02995 /* Assets.xcassets */; };
 		92A0272041A3FAC2C4E84DAC /* RelayCore in Frameworks */ = {isa = PBXBuildFile; productRef = 29BBB6C128A7F9DE8963C3F1 /* RelayCore */; };
 		97E7047C06854C7A743E470C /* PracticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA3CAA0AC1ADE1E20C48FAA /* PracticeView.swift */; };
+		99EE976A18D02A67F7DBFA4F /* RehearsalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5958557BDB8A0E47536DA6D /* RehearsalView.swift */; };
 		A81F28579835E237CB147F17 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2AAAA518A6A4483E001B0A5F /* Assets.xcassets */; };
 		C496195EB5B049764659DA61 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0139483D8A4E89AA57167E5E /* HomeView.swift */; };
 		C755C521830FCC433D0164D9 /* MessagesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E54E9D7FE183135301B2091 /* MessagesViewController.swift */; };
+		CFB9435D4597BCA15FA20FEE /* RelayUI in Frameworks */ = {isa = PBXBuildFile; productRef = A1EB280E4964099E86C502A7 /* RelayUI */; };
 		DD525E9E42678FAD86ABCDD9 /* RelayGames in Frameworks */ = {isa = PBXBuildFile; productRef = FA29DC8C5A7B852E7551ED1F /* RelayGames */; };
 		E7DD36DB5B20C2ECB0AB9AB6 /* RelayUI in Frameworks */ = {isa = PBXBuildFile; productRef = 051D4EAF694F20165534FADA /* RelayUI */; };
 /* End PBXBuildFile section */
@@ -66,7 +68,9 @@
 		ACE6D1D6432624D1C7C02995 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B2640FB004F58617990C7498 /* Relay.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Relay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C6F2757C78241F4A86393DD4 /* Messages.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Messages.framework; path = System/Library/Frameworks/Messages.framework; sourceTree = SDKROOT; };
+		D5958557BDB8A0E47536DA6D /* RehearsalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RehearsalView.swift; sourceTree = "<group>"; };
 		DE0FFC7166FE0DDFD9D507BD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F615586BC29001626E69E9BA /* Relay.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Relay.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,14 +93,23 @@
 			files = (
 				4900F6EF78F8F5B2F3228ECA /* RelayCore in Frameworks */,
 				65E043351D7771289EF3323C /* RelayGames in Frameworks */,
-				2263A3AE05F6A30FC962D5C7 /* RelayAnalytics in Frameworks */,
-				352DBF938459B8F9127C4ABD /* RelayUI in Frameworks */,
+				2263A3AE05F6A30FC962D5C7 /* RelayMessages in Frameworks */,
+				352DBF938459B8F9127C4ABD /* RelayAnalytics in Frameworks */,
+				CFB9435D4597BCA15FA20FEE /* RelayUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5CD640C69D2989EF19E47506 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				F615586BC29001626E69E9BA /* Relay.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		62172B484E20FCA6D4134698 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -112,6 +125,7 @@
 				0139483D8A4E89AA57167E5E /* HomeView.swift */,
 				DE0FFC7166FE0DDFD9D507BD /* Info.plist */,
 				6DA3CAA0AC1ADE1E20C48FAA /* PracticeView.swift */,
+				D5958557BDB8A0E47536DA6D /* RehearsalView.swift */,
 				6A64E49D47DCE2E8A9E443A6 /* RelayApp.swift */,
 			);
 			path = App;
@@ -150,6 +164,7 @@
 			isa = PBXGroup;
 			children = (
 				78BB05CD62210B19973414DB /* App */,
+				5CD640C69D2989EF19E47506 /* Config */,
 				B7828F7E4C9C688FEB561995 /* MessagesExtension */,
 				96D02309876A3C029DF41C69 /* Packages */,
 				62172B484E20FCA6D4134698 /* Frameworks */,
@@ -178,6 +193,7 @@
 			packageProductDependencies = (
 				34A01BA37C866FB0D8B61E8F /* RelayCore */,
 				6D5F02B4462F13E6974C24E0 /* RelayGames */,
+				9C911E4B4059E008B62BDA65 /* RelayMessages */,
 				72D2294820EC5C0E0CA84D80 /* RelayAnalytics */,
 				A1EB280E4964099E86C502A7 /* RelayUI */,
 			);
@@ -287,6 +303,7 @@
 			files = (
 				C496195EB5B049764659DA61 /* HomeView.swift in Sources */,
 				97E7047C06854C7A743E470C /* PracticeView.swift in Sources */,
+				99EE976A18D02A67F7DBFA4F /* RehearsalView.swift in Sources */,
 				57A9572E51CE26FD5C0F223D /* RelayApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -304,6 +321,7 @@
 /* Begin XCBuildConfiguration section */
 		2081E5984332363D157E9BAF /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F615586BC29001626E69E9BA /* Relay.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -339,7 +357,6 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -382,7 +399,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.relay.Relay.MessagesExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELAY_BUNDLE_ID_PREFIX).Relay.MessagesExtension";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -390,6 +407,7 @@
 		};
 		71F4EFF4B9550541A79E6FCC /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F615586BC29001626E69E9BA /* Relay.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -425,7 +443,6 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -461,7 +478,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.relay.Relay;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELAY_BUNDLE_ID_PREFIX).Relay";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -478,7 +495,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.relay.Relay.MessagesExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELAY_BUNDLE_ID_PREFIX).Relay.MessagesExtension";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -495,7 +512,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.relay.Relay;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(RELAY_BUNDLE_ID_PREFIX).Relay";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -568,6 +585,10 @@
 		86D70EDDF1BD6D8ED599F442 /* RelayAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RelayAnalytics;
+		};
+		9C911E4B4059E008B62BDA65 /* RelayMessages */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RelayMessages;
 		};
 		A1EB280E4964099E86C502A7 /* RelayUI */ = {
 			isa = XCSwiftPackageProductDependency;

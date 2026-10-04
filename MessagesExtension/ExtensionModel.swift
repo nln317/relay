@@ -134,11 +134,14 @@ final class ExtensionModel {
 }
 
 enum SharedStorage {
-    /// Must match the App Group in both targets' entitlements.
-    static let appGroup = "group.dev.relay.shared"
+    /// Set from the RELAY_APP_GROUP build setting (Config/Relay.xcconfig) via Info.plist,
+    /// so it always matches the entitlements.
+    static var appGroup: String? {
+        Bundle.main.object(forInfoDictionaryKey: "RelayAppGroup") as? String
+    }
 
     static var ledgerURL: URL {
-        let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
+        let base = appGroup.flatMap { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) }
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("Relay", isDirectory: true).appendingPathComponent("ledger-v1.json")
     }

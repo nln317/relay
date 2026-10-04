@@ -30,6 +30,25 @@ struct HomeView: View {
                             .buttonStyle(PressableStyle())
                         }
                     }
+
+                    #if DEBUG
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Developer")
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(RelayTheme.textPrimary)
+                        NavigationLink {
+                            RehearsalView()
+                        } label: {
+                            Label("Two-phone rehearsal", systemImage: "iphone.gen3.radiowaves.left.and.right")
+                                .font(.headline)
+                                .foregroundStyle(RelayTheme.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(RelayTheme.surface))
+                        }
+                        .accessibilityIdentifier("home.rehearsal")
+                    }
+                    #endif
                 }
                 .padding(20)
             }

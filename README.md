@@ -25,9 +25,10 @@ open Relay.xcodeproj               # Xcode 15+ (iOS 17 SDK) — scheme "Relay"
 xcodegen generate                  # only if you change project.yml
 ```
 
-To run on a device: set your team (Signing & Capabilities) for both targets and replace the
-placeholder bundle id prefix `dev.relay` and App Group `group.dev.relay.shared` with your own
-(docs/APP_STORE.md). To play in Messages, run the **Relay** scheme, then in Messages tap
+To run on a device: create `Config/Local.xcconfig` (git-ignored) with your
+`DEVELOPMENT_TEAM`, `RELAY_BUNDLE_ID_PREFIX` and `RELAY_APP_GROUP`; both targets, the
+entitlements and the extension's ledger location pick them up (example in
+`Config/Relay.xcconfig`, details in docs/APP_STORE.md). To play in Messages, run the **Relay** scheme, then in Messages tap
 **+ → More → Relay**.
 
 ## Docs

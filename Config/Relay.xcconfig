@@ -1,0 +1,10 @@
+// Identifiers and signing in one place. To run on your own iPhone, create
+// Config/Local.xcconfig (git-ignored) with, for example:
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   RELAY_BUNDLE_ID_PREFIX = com.yourname
+//   RELAY_APP_GROUP = group.com.yourname.relay
+RELAY_BUNDLE_ID_PREFIX = dev.relay
+RELAY_APP_GROUP = group.dev.relay.shared
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

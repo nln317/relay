@@ -87,3 +87,15 @@ Participant identifiers only decide the seat on first contact with a match.
 official position with the staged move as a ghost; tapping another column replaces the
 staged message (same MSSession). Previously the board locked after insert, contradicting
 the "tap another column to change it" copy.
+
+**D-021 A debug "two-phone rehearsal" screen stands in for a second device.** The receiver
+side could not be exercised in one simulator because Messages there has no second account.
+The rehearsal runs two `ConversationController`s with separate ledgers and passes real
+message URLs between them, rendering the production views. It is compiled only in Debug and
+its results are reported separately from Messages and two-device evidence.
+
+**D-022 Signing identifiers live in one xcconfig.** `Config/Relay.xcconfig` defines
+`RELAY_BUNDLE_ID_PREFIX`, `RELAY_APP_GROUP` and an empty `DEVELOPMENT_TEAM`, then includes the
+git-ignored `Config/Local.xcconfig`. Bundle ids, entitlements and the extension's
+`RelayAppGroup` Info.plist key all derive from those settings, so the App Group the code reads
+always matches the one it is entitled to.

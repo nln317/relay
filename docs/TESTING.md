@@ -6,6 +6,7 @@ Four evidence categories are kept separate (brief §36). "Tested" without a cate
 |---|---|---|
 | AUTOMATED TESTED | `swift test` on RelayKit (unit + integration) | 83 tests passing on Linux (Swift 6.1.3) and macOS (Swift 6.3.3) |
 | SIMULATOR TESTED | Built and exercised in the iOS Simulator | Sender side done on iOS 26.5: app, practice, pick → move → change → cancel → send → reopen. See STATUS.md |
+| REHEARSAL (simulator, no Messages) | Debug-only "Two-phone rehearsal" screen in the app: two controllers with separate ledgers exchange real message URLs (D-021) | See STATUS.md |
 | PHYSICAL DEVICE TESTED | Run on an iPhone | Not yet |
 | TWO-DEVICE MESSAGES TESTED | Two iPhones, two Apple Accounts, real conversation | Not yet |
 
@@ -47,6 +48,19 @@ Tests use Swift Testing (`import Testing`).
 
 These simulate Messages with our own model of its behaviour, so they prove our logic, not
 Apple's. The on-device checklist below is still required.
+
+## Two-phone rehearsal (Debug builds)
+
+Home → Developer → **Two-phone rehearsal**. Two simulated phones (Ava, Ben), each with its own
+`ConversationController` and ledger, share a transcript of real v1 message URLs and render
+the real `PlayScreen`. Switch phones with the segmented control; the other phone opens the
+newest bubble, as if tapped. Tap any bubble in the strip to open an older turn. The
+**Edge cases** menu opens a damaged message and one from a newer protocol version.
+
+What it shows: the receiver's screens (your move, result card, rematch, older-turn notice,
+problem screens) using the same code the extension runs. What it does not show: anything the
+Messages framework does (insertion, sessions, participant identifiers, delivery). Report it as
+its own category, never as Messages or two-device evidence.
 
 ## Messages edge-case checklist (brief §28) — manual, two devices
 
