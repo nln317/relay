@@ -7,13 +7,14 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 | Milestone | Status | Why |
 |---|---|---|
 | M0 Research + platform | **PASS** | Benchmark and docs written; app + Messages extension compile in Xcode 26.6 with zero warnings; package tests pass on Linux and macOS. |
-| M1 Four in a Row parity | **PARTIAL** | Full loop implemented and covered by 85 automated tests. Sender side verified in Messages in the iOS 26.5 simulator. Receiver side, win, rematch chain, older-turn notice and problem screens verified in the simulator through the two-phone rehearsal (same logic and views, no Messages framework). Physical-device and two-device Messages play need a signing team and a second iPhone and account, so they are untested. |
+| M1 Four in a Row parity | **PARTIAL** | Full loop implemented and covered by automated tests. On the owner's iPhone: app runs, drop animation and practice verified by the owner. Sender side verified in Messages in the iOS 26.5 simulator. Receiver side, win, rematch chain, older-turn notice and problem screens verified in the simulator through the two-phone rehearsal (same logic and views, no Messages framework). Physical-device and two-device Messages play need a signing team and a second iPhone and account, so they are untested. |
+| M2 Darts | **IN PROGRESS** | Owner go-ahead 2026-10-04. Rules, integer scoring, bot, committed throws and Messages flow covered by automated tests (106 total). UI built; simulator-verified in practice, rehearsal and a dummy Messages chat (round 11); installed on the owner's iPhone. Not yet: device feedback on throwing feel, cosmetics hooks, two-device play. |
 
 ## Evidence (kept separate, brief §36)
 
 ### Automated tested
-- `swift test` on Linux (Swift 6.1.3, Docker `swift:6.1-noble`): **85 tests passed** (~75 s).
-- `swift test` on macOS 26.4.1 (Swift 6.3.3, Xcode 26.6): **85 tests passed** (~46 s).
+- `swift test` on Linux (Swift 6.1.3, Docker `swift:6.1-noble`): **106 tests passed** (~75 s).
+- `swift test` on macOS 26.4.1 (Swift 6.3.3, Xcode 26.6): **106 tests passed** (Mac, round 11).
 - Suites: rules, randomized oracle (15,000 games, all 69 windows), bot, identifiers, protocol
   (incl. fuzzing), two-device conversation flow (simulated), ledger storage, analytics privacy.
 
