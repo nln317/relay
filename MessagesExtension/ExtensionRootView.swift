@@ -63,7 +63,7 @@ struct CompactSessionCard: View {
             Text(status)
                 .font(.subheadline)
                 .foregroundStyle(RelayTheme.textSecondary)
-            Button(session.canMove ? "Play your move" : "Open board", action: onOpen)
+            Button(session.mode == .yourTurn ? "Play your move" : "Open board", action: onOpen)
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 32)
         }

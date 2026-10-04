@@ -179,7 +179,10 @@ public final class ConversationController {
 
     private func resolveTranscript(_ opened: AnyMatchSnapshot, url: URL, senderIsLocal: Bool) -> PlaySession {
         let entry = ledger.entry(for: opened.matchID)
-        let openedSource: MatchLedger.StoredSnapshot.Source = senderIsLocal ? .sentFromThisDevice : .received
+        // A snapshot whose last move was made from our known seat is ours, whatever the
+        // participant identifiers say (see localSeat below).
+        let openedIsOurs = entry?.localSeat.map { $0 == opened.producedBy } ?? senderIsLocal
+        let openedSource: MatchLedger.StoredSnapshot.Source = openedIsOurs ? .sentFromThisDevice : .received
         var display = opened
         var displaySource = openedSource
         var notices: [PlaySession.Notice] = []
@@ -206,7 +209,11 @@ public final class ConversationController {
             newOfficial = (opened, url, openedSource)
         }
 
-        let localSeat = displaySource == .received ? display.producedBy.opponent : display.producedBy
+        // Once this device has played a seat in a match, that is authoritative. Participant
+        // identifiers proved unreliable for the sender's own bubble (iOS 26.5 simulator showed
+        // our own sent message as remote), so they only decide the seat on first contact.
+        let localSeat = entry?.localSeat
+            ?? (displaySource == .received ? display.producedBy.opponent : display.producedBy)
         let previousOfficialFinished = decodeStored(entry?.official)?.outcome.isFinished ?? false
 
         persist { ledger in
@@ -219,7 +226,7 @@ public final class ConversationController {
                    pending.turnNumber <= officialTurn {
                     entry.pendingOutgoing = nil
                 }
-                entry.localSeat = localSeat
+                if entry.localSeat == nil { entry.localSeat = localSeat }
                 entry.previousMatchID = display.header.previousMatchID
             }
         }

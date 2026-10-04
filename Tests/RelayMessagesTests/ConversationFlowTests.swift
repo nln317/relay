@@ -226,6 +226,30 @@ struct EdgeCaseTests {
         #expect(!again.canMove)
     }
 
+    /// Regression: in the iOS 26.5 simulator the sender's own sent bubble reported a
+    /// sender identifier different from the local one, so it opened in the opponent's seat
+    /// and allowed a move. The seat this device already played must win.
+    @Test func ownBubbleReportedAsRemoteStillOpensAsWaiting() throws {
+        let (ava, _, chat) = try playedConversation([3])
+        let misreported = OpenedMessage(url: chat.last.url, senderIsLocal: false, isPending: false)
+        let opened = try session(ava.controller.screen(for: misreported))
+        #expect(opened.localSeat == .one)
+        #expect(opened.mode == .waitingForOpponent)
+        #expect(!opened.canMove)
+        // And the stored seat is not overwritten by the misreport.
+        #expect(ava.controller.ledger.entry(for: opened.snapshot.matchID)?.localSeat == .one)
+        let again = try session(chat.open(chat.last, on: ava))
+        #expect(again.mode == .waitingForOpponent)
+    }
+
+    @Test func ownBubbleMisreportedLaterInTheGame() throws {
+        let (_, ben, chat) = try playedConversation([3, 4, 5, 6])
+        let misreported = OpenedMessage(url: chat.last.url, senderIsLocal: false, isPending: false)
+        let opened = try session(ben.controller.screen(for: misreported))
+        #expect(opened.localSeat == .two)
+        #expect(opened.mode == .waitingForOpponent)
+    }
+
     @Test func duplicateDeliveryIsIdempotent() throws {
         let (_, ben, chat) = try playedConversation([3, 4, 5])
         let first = try session(chat.open(chat.last, on: ben))

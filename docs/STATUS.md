@@ -53,7 +53,7 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 1. **Group chats:** any member can answer a turn; conflicting answers are flagged, not prevented.
 2. **Same Apple Account on two devices** sees its own moves as local on both; may show
    "Their move" on the wrong device. Detected as diverged history at worst.
-3. **No iMessage app icon** (blank placeholder in the + menu) and no app icon. Needs original art.
+3. **Placeholder icons only:** simple original app and iMessage icons (board with two discs), generated locally; final art is M4.
 4. **Placeholder identifiers:** bundle id `dev.relay.*`, App Group `group.dev.relay.shared`,
    fallback host `relay.invalid`.
 5. **No sound.** Haptics are implemented but unverified.

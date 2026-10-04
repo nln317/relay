@@ -92,8 +92,26 @@ final class ExtensionModel {
         }
     }
 
+    /// The move is in the compose field. Show the official board with the staged move as a
+    /// ghost and keep it interactive, so tapping another column replaces the staged message.
     func markInserted(_ outgoing: OutgoingMessage) {
         errorText = nil
+        if case .play(let before)? = screenBeforeInsert {
+            screen = .play(PlaySession(
+                snapshot: before.snapshot,
+                localSeat: before.localSeat,
+                mode: .readyToSend(pending: outgoing.snapshot),
+                isUnsentNewMatch: before.isUnsentNewMatch
+            ))
+        } else {
+            // A no-move challenge: nothing to change, just show it as staged.
+            screen = .play(PlaySession(
+                snapshot: outgoing.snapshot,
+                localSeat: outgoing.localSeat,
+                mode: .readyToSend(pending: outgoing.snapshot),
+                isUnsentNewMatch: true
+            ))
+        }
         screenBeforeInsert = nil
     }
 

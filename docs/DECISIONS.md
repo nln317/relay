@@ -76,3 +76,14 @@ them, and Xcode failed with "Multiple commands produce .app". Regenerated with p
 familiar wording instead of a move counter. The text addresses the recipient; the sender's
 own copy reads the same, which matches the benchmark. Finished games still say
 "Game over · four in a row!" or "Game over · it's a draw".
+
+**D-019 The seat this device already played wins over participant identifiers.** In the
+iOS 26.5 simulator, the sender's own sent bubble reported a sender identifier different from
+the local one, so it opened in the opponent's seat and allowed a move as them. The ledger's
+stored seat is now authoritative once set, and is never overwritten by a later open.
+Participant identifiers only decide the seat on first contact with a match.
+
+**D-020 After staging a move, the board stays interactive.** The extension shows the
+official position with the staged move as a ghost; tapping another column replaces the
+staged message (same MSSession). Previously the board locked after insert, contradicting
+the "tap another column to change it" copy.
