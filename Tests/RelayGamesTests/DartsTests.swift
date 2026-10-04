@@ -235,7 +235,7 @@ struct DartsBotTests {
         // A soft flick still reaches the bottom of the board, and a hard one the top double.
         let soft = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.0), velocity: (0, -1.45)))
         #expect(DartsBoard.segment(at: hit(soft)).number == 3)
-        let top = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.0), velocity: (0, -6.5)))
+        let top = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.0), velocity: (0, -5.7)))
         #expect(DartsBoard.segment(at: hit(top)) == .init(ring: .double, number: 20))
         // A feeble flick falls short of the board.
         let feeble = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.2), velocity: (0, -0.35)))

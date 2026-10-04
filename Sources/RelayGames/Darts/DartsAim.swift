@@ -27,7 +27,8 @@ public enum DartsAim {
         // Height follows the ratio of speeds: a moderate flick reaches the bull, and every
         // doubling of speed (or halving) moves the dart the same distance up (or down), so
         // the bottom of the board is as reachable as the top.
-        let height = 0.5 - reachPerDoubling * log2(upwardSpeed / bullSpeed)
+        let doublings = log2(upwardSpeed / bullSpeed)
+        let height = 0.5 - doublings * (doublings > 0 ? reachPerDoublingAbove : reachPerDoubling)
         // Follow the line of the swipe up to that height. A near-flat swipe would run off
         // to infinity, so the slope is capped (the rules clamp anything off the board).
         let slope = min(max(aimSlope(start: start, release: release, velocity: velocity), -1.5), 1.5)
@@ -70,12 +71,15 @@ public enum DartsAim {
     public static let minimumThrowSpeed = 0.3
     /// Flick speed (board widths per second) that reaches the bull.
     public static let bullSpeed = 3.0
-    /// Board widths the dart climbs for each doubling of flick speed. With these, about
-    /// 1.4 widths a second reaches the bottom double, 3 the bull, 4.7 the treble 20 and
-    /// 6.6 the top double. Tuned on device with Nathan (2026-10-04): a straight-line
-    /// mapping made the bull heavy and the top touchy; a square-root one left the bottom
-    /// out of reach of soft flicks and the top too heavy.
+    /// Board widths the dart drops for each halving of flick speed below the bull's.
+    /// About 1.4 widths a second reaches the bottom double. Tuned on device with Nathan
+    /// (2026-10-04): a straight-line mapping made the bull heavy and the top touchy; a
+    /// square-root one left the bottom out of reach of soft flicks and the top too heavy.
     public static let reachPerDoubling = 1.0 / 3.0
+    /// Board widths the dart climbs for each doubling of flick speed above the bull's: a
+    /// little more, so hard flicks reach the top without straining (treble 20 at about
+    /// 4.5 widths a second, the top double at about 5.7).
+    public static let reachPerDoublingAbove = 0.4
 
     /// Scatter grows when the flick is wild (much harder than the top of the board
     /// needs), in tenths of a millimetre.

@@ -142,7 +142,8 @@ release speed sets how high it flies on a logarithmic curve (about 3 board width
 second reaches the bull, and each doubling or halving of speed moves the dart a third of
 the board up or down, so soft flicks reach the bottom as easily as hard ones reach the
 top; replaced a square-root curve on 2026-10-04 after Nathan could not reach the bottom
-and found the top too heavy), the line of the whole swipe sets left and right (mostly start to release, a fifth
+and found the top too heavy; a little more climb per doubling above the bull, and a
+gentle swipe counts by its average speed when the finger slows before lifting), the line of the whole swipe sets left and right (mostly start to release, a fifth
 release velocity, with leans under about 3 degrees flying straight, because reading only
 the release made a thumb's natural hook throw crooked; the dart follows only half the
 finger's sideways drift and leans along the swipe while held; Nathan, 2026-10-04),

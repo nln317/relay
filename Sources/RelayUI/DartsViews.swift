@@ -314,7 +314,10 @@ struct FlyingDart: View {
         ThrowingDart(flights: flight.colour)
             .modifier(FlightPath(flight: flight, progress: progress))
             .allowsHitTesting(false)
-            .onAppear {
+            // Started from a task, not onAppear: a dart that appears inside an update with
+            // animations turned off (a replay opening as the screen changes) would otherwise
+            // finish its flight instantly and never be seen flying.
+            .task {
                 // Quick off the hand, easing as it travels away into the board.
                 withAnimation(.timingCurve(0.25, 0.55, 0.5, 1, duration: DartsTiming.flight).delay(flight.delay)) {
                     progress = 1
@@ -595,6 +598,8 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
     /// Finger movement while the dart is held; kept at release until the flight takes over.
     @State private var hold: CGSize = .zero
     @State private var holding = false
+    /// When the finger picked up the dart, to judge the swipe's average speed.
+    @State private var holdStart: Date?
     /// Where the player's dart left the hand, until its landing shows up in `darts`.
     @State private var launchTip: CGPoint?
     @State private var flights: [Int: DartFlight] = [:]
@@ -915,6 +920,7 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                 // Only a swipe that starts low on the board or below it picks up the dart.
                 guard showsHandDart, launchTip == nil, value.startLocation.y > layout.mapping.centre.y + layout.diameter * 0.3 else { return }
                 holding = true
+                if holdStart == nil { holdStart = value.time }
                 // The dart rises with the finger but drifts sideways only part as far.
                 hold = CGSize(width: value.translation.width * DartsAim.sideFollow, height: value.translation.height)
             }
@@ -922,13 +928,20 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                 guard showsHandDart, launchTip == nil, holding else { return }
                 holding = false
                 let diameter = Double(layout.diameter)
+                // A gentle swipe often slows as the finger lifts, leaving almost no release
+                // speed; its average speed over the swipe is what the player meant.
+                let duration = max(0.03, value.time.timeIntervalSince(holdStart ?? value.time))
+                holdStart = nil
+                let averageRise = Double(value.startLocation.y - value.location.y) / diameter / duration
+                let releaseRise = -Double(value.velocity.height) / diameter
                 let target = DartsAim.flickTarget(
                     start: layout.unit(value.startLocation),
                     release: layout.unit(value.location),
-                    velocity: (Double(value.velocity.width) / diameter, Double(value.velocity.height) / diameter),
+                    velocity: (Double(value.velocity.width) / diameter, -max(releaseRise, averageRise)),
                     dartX: 0.5
                 )
                 guard let target else {
+                    holdStart = nil
                     withAnimation(.spring(duration: 0.3, bounce: 0.35)) { hold = .zero }
                     return
                 }
