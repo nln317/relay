@@ -136,8 +136,12 @@ final class ExtensionModel {
 enum SharedStorage {
     /// Set from the RELAY_APP_GROUP build setting (Config/Relay.xcconfig) via Info.plist,
     /// so it always matches the entitlements.
+    /// Empty when the build has no App Group (RELAY_USE_APP_GROUP = NO, D-025).
     static var appGroup: String? {
-        Bundle.main.object(forInfoDictionaryKey: "RelayAppGroup") as? String
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "RelayAppGroup") as? String,
+              !group.isEmpty
+        else { return nil }
+        return group
     }
 
     static var ledgerURL: URL {

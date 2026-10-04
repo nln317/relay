@@ -26,6 +26,6 @@
 		<string>$(PRODUCT_MODULE_NAME).MessagesViewController</string>
 	</dict>
 	<key>RelayAppGroup</key>
-	<string>$(RELAY_APP_GROUP)</string>
+	<string>$(RELAY_APP_GROUP_IN_USE)</string>
 </dict>
 </plist>

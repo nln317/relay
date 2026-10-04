@@ -55,13 +55,11 @@ targets:
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         ITSAppUsesNonExemptEncryption: false
-    entitlements:
-      path: App/Relay.entitlements
-      properties:
-        com.apple.security.application-groups: [$(RELAY_APP_GROUP)]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(RELAY_BUNDLE_ID_PREFIX).Relay
+        # Entitlements files are hand-written; Config/Relay.xcconfig picks them (D-025).
+        CODE_SIGN_ENTITLEMENTS: $(RELAY_APP_ENTITLEMENTS)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   RelayMessagesExtension:
     type: app-extension.messages
@@ -88,17 +86,14 @@ targets:
         CFBundleDisplayName: Relay
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        RelayAppGroup: $(RELAY_APP_GROUP)
+        RelayAppGroup: $(RELAY_APP_GROUP_IN_USE)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.message-payload-provider
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).MessagesViewController
-    entitlements:
-      path: MessagesExtension/RelayMessagesExtension.entitlements
-      properties:
-        com.apple.security.application-groups: [$(RELAY_APP_GROUP)]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(RELAY_BUNDLE_ID_PREFIX).Relay.MessagesExtension
+        CODE_SIGN_ENTITLEMENTS: $(RELAY_EXTENSION_ENTITLEMENTS)
         ASSETCATALOG_COMPILER_APPICON_NAME: iMessage App Icon
 schemes:
   Relay:

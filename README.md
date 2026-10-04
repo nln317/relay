@@ -28,7 +28,8 @@ xcodegen generate                  # only if you change project.yml
 To run on a device: create `Config/Local.xcconfig` (git-ignored) with your
 `DEVELOPMENT_TEAM`, `RELAY_BUNDLE_ID_PREFIX` and `RELAY_APP_GROUP`; both targets, the
 entitlements and the extension's ledger location pick them up (example in
-`Config/Relay.xcconfig`, details in docs/APP_STORE.md). To play in Messages, run the **Relay** scheme, then in Messages tap
+`Config/Relay.xcconfig`, details in docs/APP_STORE.md). A free Personal Team also needs
+`RELAY_USE_APP_GROUP = NO`. To play in Messages, run the **Relay** scheme, then in Messages tap
 **+ → Relay** (scroll down the list if needed).
 
 ## Docs

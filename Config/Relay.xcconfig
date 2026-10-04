@@ -3,8 +3,24 @@
 //   DEVELOPMENT_TEAM = ABCDE12345
 //   RELAY_BUNDLE_ID_PREFIX = com.yourname
 //   RELAY_APP_GROUP = group.com.yourname.relay
+// A free Personal Team cannot use App Groups; for one, also add:
+//   RELAY_USE_APP_GROUP = NO
+// Without the App Group the extension keeps its recovery ledger in its own container,
+// which is all Milestone 1 needs (D-025).
 RELAY_BUNDLE_ID_PREFIX = dev.relay
 RELAY_APP_GROUP = group.dev.relay.shared
+RELAY_USE_APP_GROUP = YES
 DEVELOPMENT_TEAM =
 
 #include? "Local.xcconfig"
+
+// Derived from the settings above; not meant to be overridden.
+RELAY_APP_ENTITLEMENTS_YES = App/Relay.entitlements
+RELAY_APP_ENTITLEMENTS_NO = Config/NoAppGroup.entitlements
+RELAY_APP_ENTITLEMENTS = $(RELAY_APP_ENTITLEMENTS_$(RELAY_USE_APP_GROUP))
+RELAY_EXTENSION_ENTITLEMENTS_YES = MessagesExtension/RelayMessagesExtension.entitlements
+RELAY_EXTENSION_ENTITLEMENTS_NO = Config/NoAppGroup.entitlements
+RELAY_EXTENSION_ENTITLEMENTS = $(RELAY_EXTENSION_ENTITLEMENTS_$(RELAY_USE_APP_GROUP))
+RELAY_APP_GROUP_IN_USE_YES = $(RELAY_APP_GROUP)
+RELAY_APP_GROUP_IN_USE_NO =
+RELAY_APP_GROUP_IN_USE = $(RELAY_APP_GROUP_IN_USE_$(RELAY_USE_APP_GROUP))

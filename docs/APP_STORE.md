@@ -9,7 +9,8 @@ Nothing here has been done; each step needs the owner (brief §52). Listed so th
 3. Put the team and identifiers in `Config/Local.xcconfig` (git-ignored), for example:
    `DEVELOPMENT_TEAM = ABCDE12345`, `RELAY_BUNDLE_ID_PREFIX = com.yourname`,
    `RELAY_APP_GROUP = group.com.yourname.relay`. That one file sets both bundle ids, both
-   entitlements and the App Group the extension reads at runtime (D-022).
+   entitlements and the App Group the extension reads at runtime (D-022). With a free
+   Personal Team, which cannot use App Groups, also add `RELAY_USE_APP_GROUP = NO` (D-025).
 4. Product name and trademark check (Relay is a working name). Must not use "GamePigeon".
 5. Domain for the message fallback URL (replaces `relay.invalid`) with a simple page for Mac
    and Android recipients.
