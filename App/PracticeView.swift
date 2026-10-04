@@ -117,6 +117,7 @@ final class PracticeModel {
 
 struct PracticeView: View {
     @State private var model: PracticeModel
+    @Environment(\.dismiss) private var dismiss
 
     init(opponent: PracticeOpponent) {
         _model = State(initialValue: PracticeModel(opponent: opponent))
@@ -142,7 +143,8 @@ struct PracticeView: View {
                     turns: model.match.turnNumber,
                     rematchKnown: false,
                     onRematch: model.playAgain,
-                    onNewGame: model.playAgain
+                    // "Play something else" returns to the practice list.
+                    onNewGame: { dismiss() }
                 )
             } else {
                 Text(status)
