@@ -607,6 +607,8 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
     @State private var dartInHand = true
     /// Points landed so far by darts replaying the last visit, for that player's plaque.
     @State private var replayedPoints: Int?
+    /// The opening replay (when `replaysDarts`) has landed its last dart.
+    @State private var replayFinished = false
     @State private var showingRules = false
     @Environment(\.seatPalette) private var palette
 
@@ -1018,6 +1020,7 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
         }
         if flights.isEmpty {
             replayedPoints = nil
+            replayFinished = true
             withAnimation(.easeOut(duration: 0.2).delay(0.12)) { dartInHand = true }
         }
     }
@@ -1028,18 +1031,20 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
         let thrower: Seat?
         let canThrow: Bool
         let settled: Bool
+        let replayFinished: Bool
         let darts: [Int]
     }
 
     private var clearingKey: ClearingKey {
-        ClearingKey(thrower: thrower, canThrow: canThrow, settled: flights.isEmpty, darts: darts.map(\.id))
+        ClearingKey(thrower: thrower, canThrow: canThrow, settled: flights.isEmpty, replayFinished: replayFinished, darts: darts.map(\.id))
     }
 
     /// When it is someone's turn to throw and nothing is in the air, the darts left by the
     /// other player come out of the board after a moment to read them, so each visit starts
     /// on a clean board. Only darts that are not the thrower's are ever taken out.
     private func clearOtherPlayersDarts() async {
-        guard canThrow, let thrower, flights.isEmpty else { return }
+        // Never before the other player's visit has been shown landing.
+        guard canThrow, let thrower, flights.isEmpty, !replaysDarts || replayFinished else { return }
         let others = Set(darts.filter { $0.seat != thrower }.map(\.id))
         guard !others.subtracting(cleared).isEmpty else { return }
         try? await Task.sleep(for: .seconds(1.1))
