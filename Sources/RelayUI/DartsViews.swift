@@ -314,16 +314,20 @@ struct FlyingDart: View {
         ThrowingDart(flights: flight.colour)
             .modifier(FlightPath(flight: flight, progress: progress))
             .allowsHitTesting(false)
-            // Started from a task, not onAppear: a dart that appears inside an update with
-            // animations turned off (a replay opening as the screen changes) would otherwise
-            // finish its flight instantly and never be seen flying.
+            // Started from a task, and landed on a timer rather than the animation's
+            // completion: a dart that appears inside an update with animations turned off (a
+            // replay opening as the screen changes) would otherwise "land" at once, unseen.
             .task {
                 // Quick off the hand, easing as it travels away into the board.
                 withAnimation(.timingCurve(0.25, 0.55, 0.5, 1, duration: DartsTiming.flight).delay(flight.delay)) {
                     progress = 1
-                } completion: {
-                    onArrival()
                 }
+                do {
+                    try await Task.sleep(for: .seconds(flight.delay + DartsTiming.flight))
+                } catch {
+                    return // Taken off the board before it landed.
+                }
+                onArrival()
             }
     }
 }

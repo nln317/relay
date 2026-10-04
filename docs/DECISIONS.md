@@ -174,3 +174,5 @@ remain presets). The visual layer is kept separate so the later re-skin is a swa
 Four in a Row gets the same treatment: light grey table, players at the top (avatar and
 disc each, "You" on the left), a glossy blue board with a lip, moulded red and yellow
 discs, help bottom left and a settings menu bottom right, with the same banners.
+Message bubble pictures carry a dark strip in white capitals ("LET'S PLAY DARTS!", "YOUR
+TURN", "GAME OVER"), and the compact drawer shows that picture with a yellow PLAY button.

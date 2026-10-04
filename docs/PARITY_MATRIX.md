@@ -21,7 +21,7 @@ is tracked separately in TESTING.md. Last updated 2026-10-04 (end of Milestone 1
 | Draft recovery after termination | Unverified | Ledger keeps staged move; transcript reconciles sends | IMPROVED | — | P0 |
 | Practice / single player | None (users ask for it) | App: 3 bot levels + pass and play | IMPROVED | Practice for every game | P1 |
 | Four in a Row | 6×7 Connect-4 | Full rules, 81-test suite incl. 15k-game oracle | PARITY (GamePigeon-style table, D-031) | Colour-blind-safe discs, VoiceOver columns | P0 |
-| Darts | 101/201/301 countdown, flick | 101 countdown (201/301 supported), straight finish, 10-round cap; GamePigeon-style table (D-031); swipe the dart up to throw (speed sets height, line sets direction); throws committed as made | PARTIAL (automated tests; device-unverified) | One-line rules, no re-throws, VoiceOver throw actions, live score preview | P1 (M2) |
+| Darts | 101/201/301 countdown, flick | 101 countdown (201/301 supported), straight finish, 10-round cap; GamePigeon-style table (D-031); swipe the dart up to throw (speed sets height, line sets direction); throws committed as made | PARITY for single-device feel (owner-accepted on iPhone 2026-10-04); two-device unverified | One-line rules, no re-throws, VoiceOver throw actions, live score preview | P1 (M2) |
 | 8-Ball | Two modes, cue drag + power | — | NOT STARTED | Flagship physics and cosmetics | P1 (M3) |
 | Cup Pong | 9–10 cups, flick | — | NOT STARTED | — | P2 |
 | Basketball | 3 timed rounds, swipe | — | NOT STARTED | — | P2 |

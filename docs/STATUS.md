@@ -8,7 +8,7 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 |---|---|---|
 | M0 Research + platform | **PASS** | Benchmark and docs written; app + Messages extension compile in Xcode 26.6 with zero warnings; package tests pass on Linux and macOS. |
 | M1 Four in a Row parity | **PARTIAL** | Full loop implemented and covered by automated tests. On the owner's iPhone: app runs, drop animation and practice verified by the owner. Sender side verified in Messages in the iOS 26.5 simulator. Receiver side, win, rematch chain, older-turn notice and problem screens verified in the simulator through the two-phone rehearsal (same logic and views, no Messages framework). Physical-device and two-device Messages play need a signing team and a second iPhone and account, so they are untested. |
-| M2 Darts | **IN PROGRESS** | Owner go-ahead 2026-10-04. Rules, integer scoring, bot, committed throws and Messages flow covered by automated tests (106 total). UI built; simulator-verified in practice, rehearsal and a dummy Messages chat (round 11); installed on the owner's iPhone. Not yet: device feedback on throwing feel, cosmetics hooks, two-device play. |
+| M2 Darts | **PASS (owner-accepted feel), PARTIAL evidence** | Owner go-ahead 2026-10-04. Rules, integer scoring, bot, committed throws and Messages flow covered by automated tests (108 total). GamePigeon-style table (D-031) tuned on the owner's iPhone over many rounds; on 2026-10-04 23:34 the owner called the throw feel "decent enough" and closed the game. Not yet: two-device play, cosmetics hooks, sound. |
 
 ## Evidence (kept separate, brief §36)
 
@@ -68,6 +68,20 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 - Five cold launches into Practice showed no stray first move (an earlier one-off sighting is
   treated as simulator tap timing).
 
+### Darts (2026-10-04, rounds 18–28 on the owner's Mac)
+- Builds at every round: device and simulator, 0 warnings. Installed on the owner's iPhone at
+  each step; the owner tuned the throw by hand (no idle sway, heavier dart, aim from the
+  whole swipe, log power curve, small pinned darts) and accepted the feel.
+- Simulator: GamePigeon-style table on iPhone 17 Pro and SE (corners, plaques, checkout tag,
+  points pop on screen, one-line banners, board clears for the next thrower); straight swipes
+  land within a bull's width of centre; Four in a Row table matches the owner's screenshot.
+- Simulator speed sweep (synthetic touches, 127fec8): soft swipes throw and fall low; the
+  board spans roughly 150–1,800 pt/s of synthetic speed, which reads steeper than the owner
+  reports on device. Retune only on owner feedback.
+- Rehearsal: scores update after each dart (fixed c80ed1f). The opening replay of the other
+  player's visit did not fly in the rehearsal's phone switch at 127fec8; bcf153b+ lands
+  flights on a timer instead of the animation completion (see Known issues).
+
 ### Physical device tested
 - iPhone 17 Pro Max, iOS 26.6.1, free Personal Team (`RELAY_USE_APP_GROUP = NO`): signed device
   build succeeded and installed. Launch waits on trusting the developer profile on the phone.
@@ -98,6 +112,10 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
    second game then stages a second bubble. Same in both App Group modes.
 8. `turn_opened` is also recorded for the sender after `didStartSending` (analytics noise; no sink yet).
 9. Randomized oracle test takes 50–70 s; fine for CI, slow for quick local runs.
+10. **Darts opening replay in the rehearsal** (switching phones) showed the other player's
+    darts already landed instead of flying in, up to 127fec8; the timer-based landing in the
+    next build is meant to fix it and needs re-checking. Real Messages opens the extension
+    fresh, but the receiving replay there is unverified on a device.
 
 ## Human action required
 See APP_STORE.md. Short list: Apple Developer team, bundle id prefix and App Group, all in one
