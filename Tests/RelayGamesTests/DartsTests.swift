@@ -188,18 +188,21 @@ struct DartsBotTests {
         let start = (x: 0.5, y: 1.3)
         let release = (x: 0.5, y: 1.0)
         // A firm, straight flick from the middle reaches the bull.
-        let firm = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -2.93)))
+        let firm = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -2.6)))
         #expect(abs(firm.x - 0.5) < 0.001)
         #expect(abs(firm.y - 0.5) < 0.01)
         // Harder flies higher (smaller y), softer drops lower.
-        let hard = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -4.16)))
+        let hard = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -4.8)))
         #expect(hard.y < firm.y)
         let soft = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -1.5)))
         #expect(soft.y > firm.y)
+        // Each extra bit of force adds less height than the last.
+        let harder = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -6.9)))
+        #expect(firm.y - hard.y > hard.y - harder.y)
         // A flick angled left lands left; releasing off-centre lands off-centre.
-        let left = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (-0.6, -2.93)))
+        let left = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (-0.6, -2.6)))
         #expect(left.x < 0.45)
-        let offCentre = try #require(DartsAim.flickTarget(start: (0.7, 1.3), release: (0.7, 1.0), velocity: (0, -2.93)))
+        let offCentre = try #require(DartsAim.flickTarget(start: (0.7, 1.3), release: (0.7, 1.0), velocity: (0, -2.6)))
         #expect(abs(offCentre.x - 0.7) < 0.001)
         // A tap, a downward drag, or stopping before letting go is not a throw.
         #expect(DartsAim.flickTarget(start: start, release: start, velocity: (0, 0)) == nil)
@@ -212,10 +215,10 @@ struct DartsBotTests {
         func hit(_ target: (x: Double, y: Double)) -> Darts.Hit {
             Darts.Hit(x: Int(((target.x - 0.5) * 4_500).rounded()), y: Int(((0.5 - target.y) * 4_500).rounded()))
         }
-        let up = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.0), velocity: (0, -4.16)))
+        let up = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.0), velocity: (0, -4.8)))
         #expect(DartsBoard.segment(at: hit(up)).number == 20)
         // A feeble flick falls short of the board.
-        let feeble = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.2), velocity: (0, -0.6)))
+        let feeble = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.2), velocity: (0, -0.35)))
         #expect(DartsBoard.segment(at: hit(feeble)) == .miss)
     }
 

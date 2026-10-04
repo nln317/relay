@@ -19,7 +19,9 @@ public enum DartsAim {
     public static func flickTarget(start: (x: Double, y: Double), release: (x: Double, y: Double), velocity: (x: Double, y: Double)) -> (x: Double, y: Double)? {
         let upwardSpeed = -velocity.y
         guard upwardSpeed >= minimumThrowSpeed, start.y > release.y else { return nil }
-        let height = lowestReach - upwardSpeed * reachPerSpeed
+        // Height grows with the square root of speed: a moderate flick reaches the bull,
+        // and each extra bit of force adds less, so hard flicks do not shoot over the top.
+        let height = lowestReach - reachScale * upwardSpeed.squareRoot()
         // Follow the line of the flick up to that height. A near-flat flick would run off
         // to infinity, so the slope is capped (the rules clamp anything off the board).
         let slope = min(max(velocity.x / upwardSpeed, -1.5), 1.5)
@@ -28,18 +30,18 @@ public enum DartsAim {
 
     /// Slower than this (board widths per second) and the dart is not thrown. The softest
     /// throws fall short of the board, so a feeble flick misses low.
-    public static let minimumThrowSpeed = 0.4
-    /// Height reached by the softest throw: a little below the board, so it misses.
-    public static let lowestReach = 1.05
-    /// How much higher each extra board width per second of flick carries the dart.
-    /// About 2.9 widths a second (a firm flick) reaches the bull and about 4.2 the
-    /// treble 20. Tuned on device with Nathan: 0.2 felt light, 0.175 too heavy.
-    public static let reachPerSpeed = 0.1875
+    public static let minimumThrowSpeed = 0.3
+    /// Height the dart would reach at zero speed: below the board.
+    public static let lowestReach = 1.14
+    /// Height gained per square root of speed. About 2.6 widths a second reaches the bull,
+    /// 4.8 the treble 20 and about 6.5 clears the top of the board. Tuned on device with
+    /// Nathan: a straight-line mapping made the bull feel heavy and the top too touchy.
+    public static let reachScale = 0.397
 
     /// Scatter grows when the flick is wild (much harder than the top of the board
     /// needs), in tenths of a millimetre.
     public static func scatter(forSpeed speed: Double) -> Double {
-        releaseScatter + 30 * max(0, speed - 6.3)
+        releaseScatter + 30 * max(0, speed - 7)
     }
 
     /// Release scatter added to every throw, standard deviation in tenths of a millimetre.

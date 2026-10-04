@@ -138,8 +138,9 @@ swap a staged move (`allowsChangingStagedMove`), unlike Four in a Row (D-020).
 
 **D-029 Throw by flicking a dart held below the board** (revised 2026-10-04 after device
 feedback; it first used drag-to-aim with a drifting sight). The player swipes the dart up:
-release speed sets how high it flies (a soft flick drops low, about 2.9 board widths a
-second reaches the bull, harder goes higher), the line of the flick sets left and right,
+release speed sets how high it flies along a square-root curve (a soft flick drops low,
+about 2.6 board widths a second reaches the bull, and extra force adds less and less
+height so hard flicks do not overshoot easily), the line of the flick sets left and right,
 and a small scatter is added, more for a wild flick. Measured in board widths so every
 screen size feels the same. The landing point is committed when the dart leaves the hand;
 the flight is animation only. The board hangs on a wall, so an over-hit or sliced
