@@ -29,6 +29,12 @@ struct HomeView: View {
                             }
                             .buttonStyle(PressableStyle())
                         }
+                        ForEach(DartsPracticeOpponent.allCases) { opponent in
+                            NavigationLink(value: opponent) {
+                                PracticeRow(opponent: opponent)
+                            }
+                            .buttonStyle(PressableStyle())
+                        }
                     }
 
                     #if DEBUG
@@ -55,6 +61,9 @@ struct HomeView: View {
             .background(RelayTheme.background.ignoresSafeArea())
             .navigationDestination(for: PracticeOpponent.self) { opponent in
                 PracticeView(opponent: opponent)
+            }
+            .navigationDestination(for: DartsPracticeOpponent.self) { opponent in
+                DartsPracticeView(opponent: opponent)
             }
         }
     }
@@ -87,8 +96,8 @@ struct HowToPlayCard: View {
     }
 }
 
-struct PracticeRow: View {
-    let opponent: PracticeOpponent
+struct PracticeRow<Option: PracticeOption>: View {
+    let opponent: Option
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .title3) private var iconWidth: CGFloat = 36
 

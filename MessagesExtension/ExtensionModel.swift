@@ -29,6 +29,8 @@ final class ExtensionModel {
     /// Delay between the disc landing and collapsing to the compose field, so the
     /// player sees their move land before the extension gets out of the way.
     @ObservationIgnored private let insertDelay: Duration = .milliseconds(450)
+    /// Longer for Darts, so the visit total can be read before the sheet collapses.
+    @ObservationIgnored private let visitInsertDelay: Duration = .milliseconds(1_100)
     /// The screen before an optimistic move, restored if inserting fails.
     @ObservationIgnored private var screenBeforeInsert: ConversationScreen?
 
@@ -68,27 +70,73 @@ final class ExtensionModel {
         perform(.expand)
     }
 
-    func play(column: Int) {
+    func handle(_ input: PlayInput) {
+        switch input {
+        case .column(let column): play(.fourInARow(.init(column: column)))
+        case .dart(let hit): throwDart(hit)
+        case .sendCommitted: sendCommitted()
+        }
+    }
+
+    private func play(_ action: AnyAction) {
         guard !isWorking, case .play(let session) = screen else { return }
         do {
-            let outgoing = try controller.prepareMove(.fourInARow(.init(column: column)), in: session)
-            screenBeforeInsert = screen
-            // Show the move landing immediately; the board is now read-only until
-            // the message is sent or the draft is reopened.
-            screen = .play(PlaySession(
-                snapshot: outgoing.snapshot,
-                localSeat: session.localSeat,
-                mode: .readyToSend(pending: outgoing.snapshot),
-                knownRematch: nil
-            ))
-            isWorking = true
-            Task { @MainActor in
-                try? await Task.sleep(for: insertDelay)
-                isWorking = false
-                perform(.insert(outgoing))
-            }
+            let outgoing = try controller.prepareMove(action, in: session)
+            // Show the move landing immediately, read-only until sent or reopened.
+            let landed = PlaySession(snapshot: outgoing.snapshot, localSeat: session.localSeat, mode: .readyToSend(pending: outgoing.snapshot))
+            stage(outgoing, showing: landed, restoring: session, delay: insertDelay)
         } catch {
             errorText = "That move isn't allowed."
+        }
+    }
+
+    /// A dart is committed to the ledger before it is shown landing (no re-throws).
+    private func throwDart(_ hit: Darts.Hit) {
+        guard !isWorking, case .play(let session) = screen else { return }
+        do {
+            switch try controller.throwDart(hit, in: session) {
+            case .thrown(let next):
+                screen = .play(next)
+            case .visitComplete(let next, let outgoing):
+                // If inserting fails, come back to the finished visit with its Send button.
+                stage(outgoing, showing: staged(outgoing, over: session), restoring: next, delay: visitInsertDelay)
+            }
+        } catch {
+            errorText = "Couldn't throw that dart."
+        }
+    }
+
+    /// Puts an already committed visit back in the message box (after it was deleted).
+    private func sendCommitted() {
+        guard !isWorking, case .play(let session) = screen, let draft = session.draft else { return }
+        do {
+            let outgoing = try controller.prepareMove(draft, in: session)
+            stage(outgoing, showing: staged(outgoing, over: session), restoring: session, delay: .zero)
+        } catch {
+            errorText = "Couldn't prepare your darts."
+        }
+    }
+
+    /// The official position with `outgoing` waiting to be sent.
+    private func staged(_ outgoing: OutgoingMessage, over session: PlaySession) -> PlaySession {
+        PlaySession(
+            snapshot: session.snapshot,
+            localSeat: session.localSeat,
+            mode: .readyToSend(pending: outgoing.snapshot),
+            isUnsentNewMatch: session.isUnsentNewMatch
+        )
+    }
+
+    /// Shows `showing` now, then asks Messages to insert the move after `delay`, so the
+    /// disc falls or the last dart lands before the sheet collapses.
+    private func stage(_ outgoing: OutgoingMessage, showing: PlaySession, restoring previous: PlaySession, delay: Duration) {
+        screenBeforeInsert = .play(previous)
+        screen = .play(showing)
+        isWorking = true
+        Task { @MainActor in
+            try? await Task.sleep(for: delay)
+            isWorking = false
+            perform(.insert(outgoing))
         }
     }
 

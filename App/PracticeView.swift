@@ -5,7 +5,14 @@ import RelayGames
 import RelayUI
 import SwiftUI
 
-enum PracticeOpponent: String, CaseIterable, Identifiable, Hashable {
+/// A row in the home screen's practice list.
+protocol PracticeOption: Hashable, Identifiable {
+    var title: String { get }
+    var subtitle: String { get }
+    var symbol: String { get }
+}
+
+enum PracticeOpponent: String, CaseIterable, Identifiable, Hashable, PracticeOption {
     case casualBot, standardBot, sharpBot, passAndPlay
 
     var id: String { rawValue }

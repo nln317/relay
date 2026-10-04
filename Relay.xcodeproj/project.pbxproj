@@ -23,6 +23,7 @@
 		97E7047C06854C7A743E470C /* PracticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA3CAA0AC1ADE1E20C48FAA /* PracticeView.swift */; };
 		99EE976A18D02A67F7DBFA4F /* RehearsalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5958557BDB8A0E47536DA6D /* RehearsalView.swift */; };
 		A81F28579835E237CB147F17 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2AAAA518A6A4483E001B0A5F /* Assets.xcassets */; };
+		BAA0FEF5B1092FB9AB0980C0 /* DartsPracticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0F120083536C9190BE2E8E /* DartsPracticeView.swift */; };
 		C496195EB5B049764659DA61 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0139483D8A4E89AA57167E5E /* HomeView.swift */; };
 		C755C521830FCC433D0164D9 /* MessagesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E54E9D7FE183135301B2091 /* MessagesViewController.swift */; };
 		CFB9435D4597BCA15FA20FEE /* RelayUI in Frameworks */ = {isa = PBXBuildFile; productRef = A1EB280E4964099E86C502A7 /* RelayUI */; };
@@ -60,6 +61,7 @@
 		2AAAA518A6A4483E001B0A5F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2E54E9D7FE183135301B2091 /* MessagesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewController.swift; sourceTree = "<group>"; };
 		43D6EC5E7C9AB2D6B938D7E5 /* ExtensionRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionRootView.swift; sourceTree = "<group>"; };
+		4D0F120083536C9190BE2E8E /* DartsPracticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DartsPracticeView.swift; sourceTree = "<group>"; };
 		527F62ECB424D779F055D0E7 /* RelayMessagesExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = RelayMessagesExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6A64E49D47DCE2E8A9E443A6 /* RelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayApp.swift; sourceTree = "<group>"; };
 		6DA3CAA0AC1ADE1E20C48FAA /* PracticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeView.swift; sourceTree = "<group>"; };
@@ -122,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				2AAAA518A6A4483E001B0A5F /* Assets.xcassets */,
+				4D0F120083536C9190BE2E8E /* DartsPracticeView.swift */,
 				0139483D8A4E89AA57167E5E /* HomeView.swift */,
 				DE0FFC7166FE0DDFD9D507BD /* Info.plist */,
 				6DA3CAA0AC1ADE1E20C48FAA /* PracticeView.swift */,
@@ -301,6 +304,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BAA0FEF5B1092FB9AB0980C0 /* DartsPracticeView.swift in Sources */,
 				C496195EB5B049764659DA61 /* HomeView.swift in Sources */,
 				97E7047C06854C7A743E470C /* PracticeView.swift in Sources */,
 				99EE976A18D02A67F7DBFA4F /* RehearsalView.swift in Sources */,

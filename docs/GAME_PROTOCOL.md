@@ -96,6 +96,15 @@ Rules:
 "Inserted" = placed in the compose field. "Send started" = `didStartSending`. We never
 claim "delivered" or "read"; Messages does not expose either to extensions.
 
+## Darts payload (`g=darts`, `rv=1`)
+
+- `c`: `{"s": startingScore, "r": rounds}`, e.g. `{"r":10,"s":201}`.
+- `a`: one entry per visit, each a flat integer array `[x1, y1, x2, y2, x3, y3]` of landing
+  points in tenths of a millimetre from the bullseye (x right, y up). A visit has three
+  darts unless it finished or bust earlier; anything else is rejected as illegal history.
+- The receiver re-scores every dart (integer maths, D-027). Longest game (301, 12 rounds,
+  every dart at the edge of reach) stays under 5,000 characters (tested).
+
 ## Versioning policy
 
 - Additive optional fields: keep `v`, old clients ignore unknown keys.
@@ -105,8 +114,7 @@ claim "delivered" or "read"; Messages does not expose either to extensions.
 
 ## Known risks (next games)
 
-- **Re-roll in skill games:** if a Darts throw is computed when the player releases, they
-  could cancel the staged message and throw again. Plan for M2: the throw result is committed
-  to the ledger at release, and reopening shows the committed throw, not a fresh attempt.
+- **Re-roll in skill games:** handled in M2 (D-028). Each dart is committed to the ledger at
+  release; reopening resumes the visit and a deleted staged visit can only be re-sent unchanged.
   (A determined user with a modified client can still cheat; see ARCHITECTURE.md.)
 - **Hidden information** needs commit-reveal; not supported by v1.

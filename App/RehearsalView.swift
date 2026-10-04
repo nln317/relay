@@ -47,15 +47,26 @@ final class RehearsalModel {
         screen = controller.screen(for: OpenedMessage(url: bubble.url, senderIsLocal: bubble.sender == viewer, isPending: false))
     }
 
-    func start() {
-        guard let start = controller.startMatch(game: FourInARow.gameID) else { return }
+    func start(_ game: GameDefinition) {
+        guard let start = controller.startMatch(game: game.id) else { return }
         handle(start)
     }
 
-    func play(column: Int) {
+    func handle(_ input: PlayInput) {
         guard case .play(let session) = screen else { return }
         do {
-            send(try controller.prepareMove(.fourInARow(.init(column: column)), in: session))
+            switch input {
+            case .column(let column):
+                send(try controller.prepareMove(.fourInARow(.init(column: column)), in: session))
+            case .dart(let hit):
+                switch try controller.throwDart(hit, in: session) {
+                case .thrown(let next): screen = .play(next)
+                case .visitComplete(_, let outgoing): send(outgoing)
+                }
+            case .sendCommitted:
+                guard let draft = session.draft else { return }
+                send(try controller.prepareMove(draft, in: session))
+            }
         } catch {
             lastError = String(describing: error)
         }
@@ -94,10 +105,7 @@ final class RehearsalModel {
     private func send(_ outgoing: OutgoingMessage) {
         controller.didInsert(outgoing)
         controller.didStartSending(url: outgoing.url)
-        var image: UIImage?
-        if case .fourInARow(let snapshot) = outgoing.snapshot {
-            image = BubbleImageRenderer.image(for: snapshot.match)
-        }
+        let image = BubbleImageRenderer.image(for: outgoing.snapshot)
         let bubble = Bubble(url: outgoing.url, sender: viewer, caption: outgoing.caption, image: image)
         transcript.append(bubble)
         open(bubble)
@@ -121,11 +129,11 @@ struct RehearsalView: View {
             Group {
                 switch model.screen {
                 case .picker:
-                    GamePickerView { _ in model.start() }
+                    GamePickerView { model.start($0) }
                 case .problem(let error):
                     ProblemView(error: error, onNewGame: model.newGame)
                 case .play(let session):
-                    PlayScreen(session: session, onColumn: model.play(column:), onRematch: model.rematch, onNewGame: model.newGame)
+                    PlayScreen(session: session, onInput: model.handle, onRematch: model.rematch, onNewGame: model.newGame)
                 }
             }
             .frame(maxHeight: .infinity)

@@ -112,10 +112,7 @@ final class MessagesViewController: MSMessagesAppViewController {
         let layout = MSMessageTemplateLayout()
         layout.caption = outgoing.caption.caption
         layout.subcaption = outgoing.caption.subcaption
-        switch outgoing.snapshot {
-        case .fourInARow(let snapshot):
-            layout.image = BubbleImageRenderer.image(for: snapshot.match)
-        }
+        layout.image = BubbleImageRenderer.image(for: outgoing.snapshot)
 
         let message = MSMessage(session: session)
         message.url = outgoing.url

@@ -112,6 +112,23 @@ public enum Darts: GameRules {
         public var remainingAfter: Int
         /// True once no more darts may be thrown in this visit.
         public var isComplete: Bool
+
+        /// The progress of a visit that has already been recorded.
+        public init(_ visit: Visit) {
+            darts = visit.darts
+            result = visit.result
+            points = visit.points
+            remainingAfter = visit.remainingAfter
+            isComplete = true
+        }
+
+        init(darts: [ScoredDart], result: Visit.Result, points: Int, remainingAfter: Int, isComplete: Bool) {
+            self.darts = darts
+            self.result = result
+            self.points = points
+            self.remainingAfter = remainingAfter
+            self.isComplete = isComplete
+        }
     }
 
     public struct State: Equatable, Sendable {

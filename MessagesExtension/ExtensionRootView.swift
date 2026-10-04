@@ -40,7 +40,7 @@ struct ExtensionRootView: View {
             } else {
                 PlayScreen(
                     session: session,
-                    onColumn: { model.play(column: $0) },
+                    onInput: { model.handle($0) },
                     onRematch: model.rematch,
                     onNewGame: model.newGame
                 )
