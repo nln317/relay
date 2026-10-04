@@ -60,6 +60,10 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
   at once and replies within about 3 s in the simulator.
 - Free-account build (`RELAY_USE_APP_GROUP = NO`, D-025): builds, no App Group entitlement,
   stages a move in Messages with the fallback ledger.
+- VoiceOver labels (read by a scratch XCUITest, 27f473f): columns read discs bottom to top from
+  each player's side ("Column 3: you, you, you, you. 2 spaces free. Part of the winning line."),
+  Ember/Tide in pass-and-play, header "Record: you 1, them 0". The "They played column N."
+  announcement needs a device with VoiceOver.
 - Five cold launches into Practice showed no stray first move (an earlier one-off sighting is
   treated as simulator tap timing).
 
@@ -72,7 +76,7 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 ## Not tested
 - Receiver side inside real Messages (covered only by the rehearsal and automated tests).
 - Finishing a game and rematching over real Messages; diverged history on a device.
-- Haptics (simulator has none), a full VoiceOver pass, iOS 17 drag-to-resize, Sharp bot depth beyond one-move blocks.
+- Haptics (simulator has none), a full VoiceOver pass on a device (move announcements), iOS 17 drag-to-resize, Sharp bot depth beyond one-move blocks.
 - Anything on a physical iPhone; any real two-person conversation.
 - App Group sharing between app and extension (needs a signing team).
 - Mac/Android recipients (fallback URL is a placeholder domain).
