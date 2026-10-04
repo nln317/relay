@@ -66,7 +66,7 @@ struct HowToPlayCard: View {
             Text("Play in Messages")
                 .font(.headline)
                 .foregroundStyle(RelayTheme.textPrimary)
-            step(1, "Open a conversation and tap +, then More, then Relay.")
+            step(1, "Open a conversation, tap +, then Relay. Scroll down the list if you don't see it.")
             step(2, "Pick a game and make your first move.")
             step(3, "Tap send. Your friend taps the bubble to reply.")
         }
@@ -89,25 +89,43 @@ struct HowToPlayCard: View {
 
 struct PracticeRow: View {
     let opponent: PracticeOpponent
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title3) private var iconWidth: CGFloat = 36
 
     var body: some View {
         HStack {
-            Image(systemName: opponent.symbol)
-                .font(.title3)
-                .frame(width: 36)
-                .foregroundStyle(RelayTheme.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(opponent.title)
-                    .font(.headline)
-                    .foregroundStyle(RelayTheme.textPrimary)
-                Text(opponent.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(RelayTheme.textSecondary)
+            // At accessibility sizes the icon sits above the text so neither is squeezed.
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    icon
+                    labels
+                }
+            } else {
+                icon.frame(width: iconWidth)
+                labels
             }
-            Spacer()
+            Spacer(minLength: 8)
             Image(systemName: "chevron.right").foregroundStyle(RelayTheme.textSecondary)
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(RelayTheme.surface))
+    }
+
+    private var icon: some View {
+        Image(systemName: opponent.symbol)
+            .font(.title3)
+            .foregroundStyle(RelayTheme.accent)
+            .accessibilityHidden(true)
+    }
+
+    private var labels: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(opponent.title)
+                .font(.headline)
+                .foregroundStyle(RelayTheme.textPrimary)
+            Text(opponent.subtitle)
+                .font(.footnote)
+                .foregroundStyle(RelayTheme.textSecondary)
+        }
     }
 }

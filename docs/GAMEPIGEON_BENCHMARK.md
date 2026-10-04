@@ -34,7 +34,7 @@ behaviour → our eventual improvement → implementation status.
 - **GamePigeon behaviour:** on iOS 17+ the user taps "+", then GamePigeon (or "More", then GamePigeon). The extension opens compact with a grid of game tiles.
 - **What works:** one destination for every game; no separate app to open.
 - **Dated / weak:** the iOS 17 "+" menu buried all third-party iMessage apps two or three taps deep. That is Apple's change, and it hits us equally.
-- **Our parity behaviour:** same entry point. The companion app's home screen tells people the exact path ("+ → More → Relay") and that they can drag Relay into the top section.
+- **Our parity behaviour:** same entry point. The companion app's home screen tells people the exact path ("+ → Relay", scrolling down if needed; iOS 26 has no "More" step).
 - **Eventual improvement:** onboarding that teaches the drag-to-top step once; a share-sheet invite from the app for friends who have never played.
 - **Status:** PARTIAL. The extension exists and the app explains the path; the drawer itself is NOT TESTED on a device.
 

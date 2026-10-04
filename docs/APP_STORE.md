@@ -19,5 +19,5 @@ Nothing here has been done; each step needs the owner (brief §52). Listed so th
 8. Age rating questionnaire (no violence in Four in a Row).
 
 ## Review notes to include later
-- Explain that the app is played inside Messages (+ → More → Relay).
+- Explain that the app is played inside Messages (+ → Relay, near the bottom of the list on iOS 26).
 - No account needed; purchases are cosmetic only.

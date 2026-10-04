@@ -99,3 +99,8 @@ its results are reported separately from Messages and two-device evidence.
 git-ignored `Config/Local.xcconfig`. Bundle ids, entitlements and the extension's
 `RelayAppGroup` Info.plist key all derive from those settings, so the App Group the code reads
 always matches the one it is entitled to.
+
+**D-023 The app and extension are dark-only for now.** Both force `.preferredColorScheme(.dark)`
+because the board, disc colours and bubble art were tuned on one dark palette. A light palette
+needs its own contrast checks for the Ember and Tide discs, so it is deferred to the art pass
+(M4) rather than shipped untested.

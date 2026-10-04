@@ -7,7 +7,7 @@ is tracked separately in TESTING.md. Last updated 2026-10-04 (end of Milestone 1
 
 | Feature | GamePigeon reference | Our current implementation | Parity status | Our improvement | Priority |
 |---|---|---|---|---|---|
-| Entry from "+" drawer | Opens compact game grid | Messages extension opens compact on the picker | PARTIAL (device-unverified) | Companion app teaches "+ → More → Relay" and drag-to-top | P0 |
+| Entry from "+" drawer | Opens compact game grid | Messages extension opens compact on the picker | PARTIAL (device-unverified) | Companion app teaches "+ → Relay" (scroll if needed) | P0 |
 | Game picker | Grid of 24 tiles, some with mode screens | One-tap list of playable games only | PARITY | Recents/Favourites/sections once catalogue ≥ 6 | P1 |
 | Start challenge | Invite with no move; recipient starts | Challenger's first move is the challenge (D-007); alternate on rematch | IMPROVED | Saves one round trip | P0 |
 | Turn message | Image + caption bubble | Template layout, rendered board, neutral caption, one MSSession per match | PARTIAL | Themed result cards later | P0 |
