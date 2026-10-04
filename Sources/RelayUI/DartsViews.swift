@@ -50,14 +50,22 @@ struct BoardMapping {
     /// The view point for a board position, kept inside `bounds` so far misses stay visible.
     func point(for hit: Darts.Hit) -> CGPoint {
         let raw = CGPoint(x: centre.x + CGFloat(hit.x) * scale, y: centre.y - CGFloat(hit.y) * scale)
-        let size = stuckSize
-        let minX = bounds.minX + size.width / 2, maxX = max(minX, bounds.maxX - size.width / 2)
-        let minY = bounds.minY + 4, maxY = max(minY, bounds.maxY - size.height)
+        let half = stuckSize.width / 2
+        let minX = bounds.minX + half, maxX = max(minX, bounds.maxX - half)
+        let minY = bounds.minY + half, maxY = max(minY, bounds.maxY - half)
         return CGPoint(x: min(max(raw.x, minX), maxX), y: min(max(raw.y, minY), maxY))
     }
 
-    /// A dart stuck in the board, seen from the oche: short, because it points at you.
-    var stuckSize: CGSize { CGSize(width: 580 * scale, height: 780 * scale) }
+    /// A dart pinned in the board, seen end on from the oche: just its crossed flights,
+    /// centred on where it went in. Small, about a twentieth of the board across.
+    var stuckSize: CGSize {
+        let side = max(9, 240 * scale)
+        return CGSize(width: side, height: side)
+    }
+
+    /// The last frame of a flight: the side-on dart, squeezed by perspective into about
+    /// the pinned dart's footprint, centred on the landing point.
+    var arrivingSize: CGSize { CGSize(width: stuckSize.width * 0.85, height: stuckSize.height * 1.1) }
 
     /// Darts lean a little away from the middle, as if thrown from in front of the bull.
     func tilt(for hit: Darts.Hit) -> Double {
@@ -164,7 +172,7 @@ public struct DartsBoardView: View {
                 ForEach(darts) { dart in
                     StuckDart(colour: palette.colour(dart.seat), tilt: mapping.tilt(for: dart.hit), animates: animatesDarts)
                         .frame(width: mapping.stuckSize.width, height: mapping.stuckSize.height)
-                        .position(x: mapping.point(for: dart.hit).x, y: mapping.point(for: dart.hit).y + mapping.stuckSize.height / 2)
+                        .position(mapping.point(for: dart.hit))
                 }
             }
             .frame(width: side, height: side)
@@ -233,30 +241,53 @@ struct ThrowingDart: View {
     }
 }
 
-/// A dart stuck where it landed. When it appears (the moment its flight arrives) it
-/// thuds in with a short jolt and a quick, heavy settle, then rests at its lean.
+/// A dart pinned where it landed, seen end on: its crossed flights in the thrower's
+/// colour over a dark hub, with a soft shadow on the board. When it appears (the moment its
+/// flight arrives) it thuds in, shrinking a touch as it goes home, then settles.
 struct StuckDart: View {
     let colour: Color
     let tilt: Double
     let animates: Bool
-    @State private var kick = 0.0
+    @State private var thud: Double
+
+    init(colour: Color, tilt: Double, animates: Bool) {
+        self.colour = colour
+        self.tilt = tilt
+        self.animates = animates
+        // Starts a little large and springs home, so it reads as driven in.
+        _thud = State(initialValue: animates ? 0.3 : 0)
+    }
 
     var body: some View {
-        ThrowingDart(flights: colour)
-            .background(alignment: .top) {
-                // A little puncture shadow where the point went in.
-                Ellipse().fill(Color.black.opacity(0.45))
-                    .frame(width: 5, height: 2.5)
-                    .offset(y: -1)
+        Canvas { context, size in
+            let w = size.width, h = size.height
+            let c = CGPoint(x: w / 2, y: h / 2)
+            // The shadow the dart throws on the board, down and to the right.
+            let shadow = Path(ellipseIn: CGRect(x: c.x - w * 0.12, y: c.y - h * 0.02, width: w * 0.5, height: h * 0.2))
+            context.fill(shadow, with: .color(.black.opacity(0.3)))
+            // Two flights crossing, each a long thin blade through the hub.
+            for angle in [45.0, -45.0] {
+                let r = angle * .pi / 180
+                let along = CGPoint(x: cos(r), y: sin(r)), across = CGPoint(x: -sin(r), y: cos(r))
+                let reach = w * 0.48, thick = w * 0.11
+                var blade = Path()
+                blade.move(to: CGPoint(x: c.x - along.x * reach, y: c.y - along.y * reach))
+                blade.addLine(to: CGPoint(x: c.x + across.x * thick, y: c.y + across.y * thick))
+                blade.addLine(to: CGPoint(x: c.x + along.x * reach, y: c.y + along.y * reach))
+                blade.addLine(to: CGPoint(x: c.x - across.x * thick, y: c.y - across.y * thick))
+                blade.closeSubpath()
+                context.fill(blade, with: .color(colour))
+                context.stroke(blade, with: .color(.black.opacity(0.45)), lineWidth: max(0.5, w * 0.03))
             }
-            .scaleEffect(x: 1, y: 1 - abs(kick) * 0.02, anchor: .top)
-            .rotationEffect(.degrees(tilt + kick), anchor: .top)
-            .onAppear {
-                guard animates else { return }
-                withAnimation(.easeOut(duration: 0.05)) { kick = 5 } completion: {
-                    withAnimation(.interpolatingSpring(stiffness: 420, damping: 11)) { kick = 0 }
-                }
-            }
+            let hub = w * 0.1
+            context.fill(Path(ellipseIn: CGRect(x: c.x - hub, y: c.y - hub, width: hub * 2, height: hub * 2)), with: .color(Color(white: 0.15)))
+        }
+        .rotationEffect(.degrees(tilt))
+        .scaleEffect(1 + thud)
+        .onAppear {
+            guard animates else { return }
+            withAnimation(.interpolatingSpring(stiffness: 500, damping: 14)) { thud = 0 }
+        }
     }
 }
 
@@ -671,7 +702,7 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                 ForEach(darts.filter { landed.contains($0.id) && !cleared.contains($0.id) }) { dart in
                     StuckDart(colour: palette.colour(dart.seat), tilt: mapping.tilt(for: dart.hit), animates: true)
                         .frame(width: mapping.stuckSize.width, height: mapping.stuckSize.height)
-                        .position(x: mapping.point(for: dart.hit).x, y: mapping.point(for: dart.hit).y + mapping.stuckSize.height / 2)
+                        .position(mapping.point(for: dart.hit))
                         .transition(.opacity)
                         .accessibilityHidden(true)
                 }
@@ -958,8 +989,9 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
             colour: palette.colour(dart.seat),
             fromTip: start,
             fromSize: layout.handSize,
-            toTip: mapping.point(for: dart.hit),
-            toSize: mapping.stuckSize,
+            // Centred on the landing point, where the pinned dart takes over.
+            toTip: CGPoint(x: mapping.point(for: dart.hit).x, y: mapping.point(for: dart.hit).y - mapping.arrivingSize.height / 2),
+            toSize: mapping.arrivingSize,
             tilt: mapping.tilt(for: dart.hit),
             lift: layout.diameter * 0.05,
             delay: delay

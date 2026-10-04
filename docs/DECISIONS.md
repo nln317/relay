@@ -150,7 +150,8 @@ the flight is animation only. The board hangs on a wall, so an over-hit or slice
 throw visibly misses and sticks in the wall. Every dart (the bot's and an arriving
 opponent visit too) flies in on a shallow arc, shrinking with distance, and stays stuck
 in the board until the next player picks up their dart, when the board clears (as in the
-classic game); the scores and visit strip update as it lands. The dart in hand rests still (no idle sway, Nathan 2026-10-04). VoiceOver keeps "Throw at treble 20"-style actions. Constants
+classic game); the scores and visit strip update as it lands. A stuck dart is drawn pinned and end on (crossed flights over the hit, about a
+twentieth of the board across), not hanging below the hit (Nathan, 2026-10-04). The dart in hand rests still (no idle sway, Nathan 2026-10-04). VoiceOver keeps "Throw at treble 20"-style actions. Constants
 live in `DartsAim` and are expected to be tuned after more play.
 
 **D-030 Our own dartboard look** (superseded by D-031 on 2026-10-04). Standard number
