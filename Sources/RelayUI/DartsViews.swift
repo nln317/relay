@@ -158,7 +158,7 @@ public struct DartsBoardView: View {
 }
 
 /// A dart stuck where it landed. When it appears (the moment its flight arrives) it
-/// jolts as it bites and its flights wobble, then it settles at its lean.
+/// thuds in with a short jolt and a quick, heavy settle, then rests at its lean.
 private struct StuckDart: View {
     let colour: Color
     let tilt: Double
@@ -178,7 +178,7 @@ private struct StuckDart: View {
             .onAppear {
                 guard animates else { return }
                 withAnimation(.easeOut(duration: 0.05)) { kick = 5 } completion: {
-                    withAnimation(.interpolatingSpring(stiffness: 420, damping: 6)) { kick = 0 }
+                    withAnimation(.interpolatingSpring(stiffness: 420, damping: 11)) { kick = 0 }
                 }
             }
     }
@@ -273,7 +273,7 @@ public struct DartsThrowView: View {
     @Environment(\.seatPalette) private var palette
 
     /// Seconds from release to the dart hitting the board.
-    static let flightDuration = 0.32
+    static let flightDuration = 0.36
     /// Height of the area below the board where the dart is held, as a share of the board.
     private static let handHeight: CGFloat = 0.36
 
@@ -314,7 +314,7 @@ public struct DartsThrowView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .aspectRatio(1 / (1 + Self.handHeight), contentMode: .fit)
-        .sensoryFeedback(.impact(weight: .medium, intensity: 0.9), trigger: landings)
+        .sensoryFeedback(.impact(weight: .heavy, intensity: 1), trigger: landings)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityDescription)
         .accessibilityHint(canThrow ? "Use the actions to throw a dart." : "")
