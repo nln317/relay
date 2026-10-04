@@ -70,8 +70,7 @@ public enum ConversationScreen: Equatable, Sendable {
     case problem(ProtocolError)
 }
 
-/// Text for the message bubble. Messages substitutes `$<participant UUID>` in
-/// template-layout captions with that participant's name (docs/GAME_PROTOCOL.md).
+/// Text for the message bubble (template layout caption, subcaption, summary).
 public struct MessageCaption: Equatable, Sendable {
     public var caption: String
     public var subcaption: String?
@@ -257,7 +256,7 @@ public final class ConversationController {
         case insert(OutgoingMessage)
     }
 
-    public func startMatch(game: GameID, senderToken: String?) -> NewMatch? {
+    public func startMatch(game: GameID) -> NewMatch? {
         guard game == FourInARow.gameID else { return nil }
         analytics.record(.gameSelected(game))
         let header = MatchHeader(
@@ -265,10 +264,10 @@ public final class ConversationController {
             rulesVersion: FourInARow.rulesVersion,
             firstSeat: Self.challengerMovesFirst ? .one : .two
         )
-        return makeNewMatch(header: header, senderToken: senderToken)
+        return makeNewMatch(header: header)
     }
 
-    public func startRematch(from session: PlaySession, senderToken: String?) throws(ControllerError) -> NewMatch {
+    public func startRematch(from session: PlaySession) throws(ControllerError) -> NewMatch {
         guard session.snapshot.outcome.isFinished else { throw .matchNotFinished }
         let header: MatchHeader
         switch session.snapshot {
@@ -276,11 +275,11 @@ public final class ConversationController {
             header = snapshot.match.rematchHeader(initiator: session.localSeat)
         }
         analytics.record(.rematchStarted(header.gameID))
-        guard let result = makeNewMatch(header: header, senderToken: senderToken) else { throw .gameMismatch }
+        guard let result = makeNewMatch(header: header) else { throw .gameMismatch }
         return result
     }
 
-    private func makeNewMatch(header: MatchHeader, senderToken: String?) -> NewMatch? {
+    private func makeNewMatch(header: MatchHeader) -> NewMatch? {
         guard header.gameID == FourInARow.gameID,
               let match = try? Match<FourInARow>(header: header, configuration: .standard)
         else { return nil }
@@ -290,12 +289,12 @@ public final class ConversationController {
         }
         guard let url = try? snapshot.url() else { return nil }
         analytics.record(.challengePrepared(header.gameID))
-        return .insert(OutgoingMessage(snapshot: snapshot, url: url, localSeat: .one, caption: Self.caption(for: snapshot, senderToken: senderToken)))
+        return .insert(OutgoingMessage(snapshot: snapshot, url: url, localSeat: .one, caption: Self.caption(for: snapshot)))
     }
 
     /// Applies the local player's move to the official state and builds the message.
     /// Choosing again while a move is ready to send replaces it (same MSSession).
-    public func prepareMove(_ action: AnyAction, in session: PlaySession, senderToken: String?) throws(ControllerError) -> OutgoingMessage {
+    public func prepareMove(_ action: AnyAction, in session: PlaySession) throws(ControllerError) -> OutgoingMessage {
         guard session.canMove else { throw .notYourTurn }
         let next: AnyMatchSnapshot
         switch (session.snapshot, action) {
@@ -316,7 +315,7 @@ public final class ConversationController {
         if next.turnNumber == 1 && session.isUnsentNewMatch {
             analytics.record(.challengePrepared(next.gameID))
         }
-        return OutgoingMessage(snapshot: next, url: url, localSeat: session.localSeat, caption: Self.caption(for: next, senderToken: senderToken))
+        return OutgoingMessage(snapshot: next, url: url, localSeat: session.localSeat, caption: Self.caption(for: next))
     }
 
     // MARK: Messages lifecycle
@@ -374,28 +373,28 @@ public final class ConversationController {
 
     // MARK: Captions
 
-    public static func caption(for snapshot: AnyMatchSnapshot, senderToken: String?) -> MessageCaption {
+    /// Captions are shown identically on both sides of the conversation, so they
+    /// never say "you" or name anyone (D-016). Messages already shows who sent a bubble.
+    public static func caption(for snapshot: AnyMatchSnapshot) -> MessageCaption {
         let gameName = GameCatalog.definition(for: snapshot.gameID)?.displayName ?? "Relay"
-        let sender = senderToken ?? "Someone"
         let subcaption: String
         let summary: String
         switch snapshot.outcome {
         case .won:
-            // In turn-based games the winning move is always made by the sender.
-            subcaption = "\(sender) wins!"
+            subcaption = "Game over · four in a row!"
             summary = "Won a game of \(gameName)"
         case .draw:
-            subcaption = "It's a draw"
+            subcaption = "Game over · it's a draw"
             summary = "Drew a game of \(gameName)"
         case .inProgress:
             if snapshot.turnNumber == 0 {
-                subcaption = "\(sender) wants to play"
+                subcaption = "New game · tap to play"
                 summary = "Sent a \(gameName) challenge"
             } else if snapshot.turnNumber == 1 {
-                subcaption = "\(sender) made the first move"
+                subcaption = "New game · first move played"
                 summary = "Started a game of \(gameName)"
             } else {
-                subcaption = "\(sender) played move \(snapshot.turnNumber)"
+                subcaption = "Move \(snapshot.turnNumber) · tap to play"
                 summary = "Played \(gameName)"
             }
         }
@@ -403,7 +402,7 @@ public final class ConversationController {
             caption: gameName,
             subcaption: subcaption,
             summaryText: summary,
-            accessibilityLabel: "\(gameName). \(summary)."
+            accessibilityLabel: "\(gameName). \(subcaption)."
         )
     }
 

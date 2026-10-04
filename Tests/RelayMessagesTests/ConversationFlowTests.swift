@@ -34,7 +34,6 @@ final class SimulatedDevice {
         })
     }
 
-    var token: String { "$\(name)" }
 }
 
 struct SentMessage {
@@ -85,7 +84,7 @@ struct ConversationFlowTests {
         #expect(ava.controller.screen(for: nil) == .picker)
 
         // Ava picks Four in a Row and moves first (D-007).
-        guard case .play(let fresh) = ava.controller.startMatch(game: FourInARow.gameID, senderToken: ava.token) else {
+        guard case .play(let fresh) = ava.controller.startMatch(game: FourInARow.gameID) else {
             Issue.record("expected the challenger to move first")
             return
         }
@@ -93,8 +92,8 @@ struct ConversationFlowTests {
         #expect(fresh.isUnsentNewMatch)
         #expect(fresh.localSeat == .one)
 
-        var outgoing = try ava.controller.prepareMove(move(0), in: fresh, senderToken: ava.token)
-        #expect(outgoing.caption.subcaption == "$ava made the first move")
+        var outgoing = try ava.controller.prepareMove(move(0), in: fresh)
+        #expect(outgoing.caption.subcaption == "New game · first move played")
         chat.insertAndSend(outgoing, from: ava)
 
         // Ava re-opens her own bubble: waiting.
@@ -108,10 +107,10 @@ struct ConversationFlowTests {
             let current = try session(chat.open(chat.last, on: device))
             #expect(current.mode == .yourTurn, "\(device.name) should be able to move")
             #expect(current.localSeat == (device === ava ? .one : .two))
-            outgoing = try device.controller.prepareMove(move(column), in: current, senderToken: device.token)
+            outgoing = try device.controller.prepareMove(move(column), in: current)
             chat.insertAndSend(outgoing, from: device)
         }
-        #expect(outgoing.caption.subcaption == "$ava wins!")
+        #expect(outgoing.caption.subcaption == "Game over · four in a row!")
 
         let benResult = try session(chat.open(chat.last, on: ben))
         #expect(benResult.mode == .finished)
@@ -125,14 +124,14 @@ struct ConversationFlowTests {
         #expect(ben.analytics.events.contains(.matchCompleted(FourInARow.gameID, result: .localLoss, turns: 7)))
 
         // Ben (who moved second) starts the rematch, so Ben moves first.
-        let rematch = try ben.controller.startRematch(from: benResult, senderToken: ben.token)
+        let rematch = try ben.controller.startRematch(from: benResult)
         guard case .play(let benFirst) = rematch else {
             Issue.record("expected Ben to move first in the rematch")
             return
         }
         #expect(benFirst.snapshot.header.previousMatchID == benResult.snapshot.matchID)
         #expect(benFirst.snapshot.header.series == SeriesTally(seatOneWins: 0, seatTwoWins: 1, draws: 0))
-        let rematchMove = try ben.controller.prepareMove(move(3), in: benFirst, senderToken: ben.token)
+        let rematchMove = try ben.controller.prepareMove(move(3), in: benFirst)
         chat.insertAndSend(rematchMove, from: ben)
 
         let avaRematch = try session(chat.open(chat.last, on: ava))
@@ -152,12 +151,12 @@ struct ConversationFlowTests {
         // A rematch started by the player who moved first produces a turn-0 challenge.
         let finished = try makeMatch([0, 1, 0, 1, 0, 1, 0])
         let avaSession = PlaySession(snapshot: .fourInARow(MatchSnapshot(match: finished)), localSeat: .one, mode: .finished)
-        guard case .insert(let challenge) = try ava.controller.startRematch(from: avaSession, senderToken: ava.token) else {
+        guard case .insert(let challenge) = try ava.controller.startRematch(from: avaSession) else {
             Issue.record("expected a challenge to insert")
             return
         }
         #expect(challenge.snapshot.turnNumber == 0)
-        #expect(challenge.caption.subcaption == "$ava wants to play")
+        #expect(challenge.caption.subcaption == "New game · tap to play")
         chat.insertAndSend(challenge, from: ava)
         #expect(try session(chat.open(chat.last, on: ava)).mode == .waitingForOpponent)
         let benSession = try session(chat.open(chat.last, on: ben))
@@ -168,22 +167,22 @@ struct ConversationFlowTests {
     @Test func cannotMoveOutOfTurnOrAfterTheEnd() throws {
         let ava = SimulatedDevice(name: "ava")
         let chat = Conversation()
-        guard case .play(let fresh) = ava.controller.startMatch(game: FourInARow.gameID, senderToken: nil) else { return }
-        chat.insertAndSend(try ava.controller.prepareMove(move(3), in: fresh, senderToken: nil), from: ava)
+        guard case .play(let fresh) = ava.controller.startMatch(game: FourInARow.gameID) else { return }
+        chat.insertAndSend(try ava.controller.prepareMove(move(3), in: fresh), from: ava)
         let waiting = try session(chat.open(chat.last, on: ava))
         #expect(throws: ControllerError.notYourTurn) {
-            try ava.controller.prepareMove(move(4), in: waiting, senderToken: nil)
+            try ava.controller.prepareMove(move(4), in: waiting)
         }
         let finished = PlaySession(snapshot: .fourInARow(MatchSnapshot(match: try makeMatch([0, 1, 0, 1, 0, 1, 0]))), localSeat: .two, mode: .finished)
-        #expect(throws: ControllerError.notYourTurn) { try ava.controller.prepareMove(move(4), in: finished, senderToken: nil) }
-        #expect(throws: ControllerError.matchNotFinished) { try ava.controller.startRematch(from: waiting, senderToken: nil) }
+        #expect(throws: ControllerError.notYourTurn) { try ava.controller.prepareMove(move(4), in: finished) }
+        #expect(throws: ControllerError.matchNotFinished) { try ava.controller.startRematch(from: waiting) }
     }
 
     @Test func illegalLocalMoveIsReportedNotSent() throws {
         let ava = SimulatedDevice(name: "ava")
         let full = try makeMatch([2, 2, 2, 2, 2, 2])
         let current = PlaySession(snapshot: .fourInARow(MatchSnapshot(match: full)), localSeat: .one, mode: .yourTurn)
-        #expect(throws: ControllerError.self) { try ava.controller.prepareMove(move(2), in: current, senderToken: nil) }
+        #expect(throws: ControllerError.self) { try ava.controller.prepareMove(move(2), in: current) }
     }
 }
 
@@ -194,13 +193,13 @@ struct EdgeCaseTests {
         let ava = SimulatedDevice(name: "ava")
         let ben = SimulatedDevice(name: "ben")
         let chat = Conversation()
-        guard case .play(var current) = ava.controller.startMatch(game: FourInARow.gameID, senderToken: nil) else {
+        guard case .play(var current) = ava.controller.startMatch(game: FourInARow.gameID) else {
             throw CancellationError()
         }
         for (index, column) in columns.enumerated() {
             let device = index.isMultiple(of: 2) ? ava : ben
             if index > 0 { current = try session(chat.open(chat.last, on: device)) }
-            chat.insertAndSend(try device.controller.prepareMove(move(column), in: current, senderToken: nil), from: device)
+            chat.insertAndSend(try device.controller.prepareMove(move(column), in: current), from: device)
         }
         return (ava, ben, chat)
     }
@@ -219,7 +218,7 @@ struct EdgeCaseTests {
         let (ava, _, chat) = try playedConversation([3, 3])
         // Ava already answered turn... Ava opens Ben's turn-2 bubble: her move.
         let current = try session(chat.open(chat.last, on: ava))
-        chat.insertAndSend(try ava.controller.prepareMove(move(0), in: current, senderToken: nil), from: ava)
+        chat.insertAndSend(try ava.controller.prepareMove(move(0), in: current), from: ava)
         // Re-opening Ben's turn-2 bubble must not offer a second answer to it.
         let again = try session(chat.open(chat.transcript[1], on: ava))
         #expect(again.snapshot.turnNumber == 3)
@@ -250,11 +249,11 @@ struct EdgeCaseTests {
         let (ava, ben, chat) = try playedConversation([3])
         // Ben answers turn 1 with column 4 and sends it.
         let benTurn = try session(chat.open(chat.last, on: ben))
-        chat.insertAndSend(try ben.controller.prepareMove(move(4), in: benTurn, senderToken: nil), from: ben)
+        chat.insertAndSend(try ben.controller.prepareMove(move(4), in: benTurn), from: ben)
         _ = try session(chat.open(chat.last, on: ava))
         // A second, different turn-2 history for the same match reaches Ava
         // (e.g. Ben's other device answered the same bubble differently).
-        let forkMatch = try ben.controller.prepareMove(move(6), in: benTurn, senderToken: nil)
+        let forkMatch = try ben.controller.prepareMove(move(6), in: benTurn)
         let fork = SentMessage(url: forkMatch.url, sender: ben)
         let shown = try session(chat.open(fork, on: ava))
         #expect(shown.notices == [.historyDiverged])
@@ -265,7 +264,7 @@ struct EdgeCaseTests {
     @Test func reopeningAnUnsentDraftShowsItAsReadyToSend() throws {
         let (ava, ben, chat) = try playedConversation([3])
         let benTurn = try session(chat.open(chat.last, on: ben))
-        let draft = try ben.controller.prepareMove(move(5), in: benTurn, senderToken: nil)
+        let draft = try ben.controller.prepareMove(move(5), in: benTurn)
         ben.controller.didInsert(draft)
 
         // Ben taps the bubble sitting in his compose field.
@@ -279,7 +278,7 @@ struct EdgeCaseTests {
         #expect(official.mode == .readyToSend(pending: draft.snapshot))
 
         // Ben changes his mind: the replacement is built from the official state.
-        let replacement = try ben.controller.prepareMove(move(0), in: pending, senderToken: nil)
+        let replacement = try ben.controller.prepareMove(move(0), in: pending)
         #expect(replacement.snapshot.turnNumber == 2)
         guard case .fourInARow(let snapshot) = replacement.snapshot else { return }
         #expect(snapshot.match.actions == [.init(column: 3), .init(column: 0)])
@@ -292,7 +291,7 @@ struct EdgeCaseTests {
     @Test func cancellingSendDropsTheDraft() throws {
         let (_, ben, chat) = try playedConversation([3])
         let benTurn = try session(chat.open(chat.last, on: ben))
-        let draft = try ben.controller.prepareMove(move(5), in: benTurn, senderToken: nil)
+        let draft = try ben.controller.prepareMove(move(5), in: benTurn)
         ben.controller.didInsert(draft)
         ben.controller.didCancelSending(url: draft.url)
         let after = try session(chat.open(chat.last, on: ben))
@@ -304,7 +303,7 @@ struct EdgeCaseTests {
     @Test func draftSurvivesExtensionTermination() throws {
         let (_, ben, chat) = try playedConversation([3])
         let benTurn = try session(chat.open(chat.last, on: ben))
-        let draft = try ben.controller.prepareMove(move(5), in: benTurn, senderToken: nil)
+        let draft = try ben.controller.prepareMove(move(5), in: benTurn)
         ben.controller.didInsert(draft)
         ben.relaunch()
         let recovered = try session(chat.open(chat.last, on: ben))
@@ -317,7 +316,7 @@ struct EdgeCaseTests {
         // but the user did send. Opening the sent bubble makes it official.
         let (ava, ben, chat) = try playedConversation([3])
         let benTurn = try session(chat.open(chat.last, on: ben))
-        let draft = try ben.controller.prepareMove(move(5), in: benTurn, senderToken: nil)
+        let draft = try ben.controller.prepareMove(move(5), in: benTurn)
         ben.controller.didInsert(draft)
         ben.relaunch()
         let sent = SentMessage(url: draft.url, sender: ben)
@@ -342,7 +341,7 @@ struct EdgeCaseTests {
         let (ava, ben, chat) = try playedConversation([3])
         let avaWaiting = try session(chat.open(chat.last, on: ava))
         let benTurn = try session(chat.open(chat.last, on: ben))
-        let reply = chat.insertAndSend(try ben.controller.prepareMove(move(2), in: benTurn, senderToken: nil), from: ben)
+        let reply = chat.insertAndSend(try ben.controller.prepareMove(move(2), in: benTurn), from: ben)
         let incoming = OpenedMessage(url: reply.url, senderIsLocal: false, isPending: false)
         let updated = try session(ava.controller.received(incoming, currentMatch: avaWaiting.snapshot.matchID))
         #expect(updated.mode == .yourTurn)
@@ -373,8 +372,8 @@ struct EdgeCaseTests {
             func save(_ ledger: MatchLedger) throws { throw Failure() }
         }
         let controller = ConversationController(store: FailingStore())
-        guard case .play(let fresh) = controller.startMatch(game: FourInARow.gameID, senderToken: nil) else { return }
-        controller.didInsert(try controller.prepareMove(move(1), in: fresh, senderToken: nil))
+        guard case .play(let fresh) = controller.startMatch(game: FourInARow.gameID) else { return }
+        controller.didInsert(try controller.prepareMove(move(1), in: fresh))
         #expect(controller.lastPersistenceError != nil)
     }
 }
@@ -420,14 +419,13 @@ struct AnalyticsPrivacyTests {
         let ava = SimulatedDevice(name: "ava")
         let ben = SimulatedDevice(name: "ben")
         let chat = Conversation()
-        guard case .play(let fresh) = ava.controller.startMatch(game: FourInARow.gameID, senderToken: ava.token) else { return }
-        chat.insertAndSend(try ava.controller.prepareMove(move(3), in: fresh, senderToken: ava.token), from: ava)
+        guard case .play(let fresh) = ava.controller.startMatch(game: FourInARow.gameID) else { return }
+        chat.insertAndSend(try ava.controller.prepareMove(move(3), in: fresh), from: ava)
         _ = chat.open(chat.last, on: ben)
         let allowedKeys: Set<String> = ["game", "turn", "result", "turns", "presentation", "reason", "opponent"]
         for event in ava.analytics.events + ben.analytics.events {
             #expect(Set(event.properties.keys).isSubset(of: allowedKeys))
             for value in event.properties.values {
-                #expect(!value.contains("$"), "participant tokens must never reach analytics")
                 #expect(UUID(uuidString: value) == nil, "no identifiers in analytics")
             }
         }

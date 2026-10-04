@@ -61,3 +61,13 @@ cramped interaction in compact; the board needs height. Picking a game requests 
 
 **D-015 No analytics network sink yet.** The event funnel is defined and tested for
 privacy, but nothing leaves the device until a provider and privacy policy are chosen.
+
+**D-016 Neutral bubble captions, no `$participant` tokens.** Captions appear identically
+to both players. The first version wrote "`$<participant id>` wins!", relying on Messages
+substituting names; in the iOS 26.5 simulator the raw token showed in the compose-field
+preview. Captions now say what happened without naming anyone; Messages already shows who
+sent each bubble. Revisit on a real two-device test.
+
+**D-017 Generate the Xcode project with XcodeGen's setting presets.** The first generated
+project lacked presets (PRODUCT_NAME etc.) because the Linux XcodeGen binary could not find
+them, and Xcode failed with "Multiple commands produce .app". Regenerated with presets.

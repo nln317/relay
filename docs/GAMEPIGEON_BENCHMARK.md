@@ -61,9 +61,9 @@ behaviour → our eventual improvement → implementation status.
 - **GamePigeon behaviour:** an image-and-caption bubble (template layout inferred). People without the app see only the image or are prompted to install. Exact caption text is unverified.
 - **What works:** the board picture in the transcript tells you the state at a glance.
 - **Dated / weak:** generic captions; Android recipients see broken links.
-- **Our parity behaviour:** `MSMessageTemplateLayout` with a rendered board image, caption "Four in a Row" and a subcaption naming the player through Messages' `$participant` substitution ("Ava played move 5", "Ava wins!"). One `MSSession` per match so each move replaces the previous bubble and the transcript stays short; `summaryText` leaves a one-line trail.
+- **Our parity behaviour:** `MSMessageTemplateLayout` with a rendered board image, caption "Four in a Row" and a neutral subcaption that reads correctly on both sides ("New game · first move played", "Move 5 · tap to play", "Game over · four in a row!"). One `MSSession` per match so each move replaces the previous bubble and the transcript stays short; `summaryText` leaves a one-line trail. (A first version used `$participant` name tokens; the simulator showed them raw in the compose field, so they were removed, D-016.)
 - **Eventual improvement:** themed result cards (brief §19); live layout for the final result only, if it proves light enough; a real fallback web page at the message URL for Mac and Android recipients (needs a domain: HUMAN ACTION).
-- **Status:** PARTIAL. Built; the `$participant` substitution and image rendering are NOT TESTED on device.
+- **Status:** PARTIAL. Simulator-tested: the bubble with board image appears in the compose field. Sent bubbles and the recipient side are NOT TESTED.
 
 ### 5. Receiving a turn
 
@@ -88,7 +88,7 @@ behaviour → our eventual improvement → implementation status.
 - **GamePigeon behaviour:** the final bubble shows the winner (unverified detail).
 - **What works:** the result lives in the chat.
 - **Dated / weak:** nothing beyond win/lose; no record across games.
-- **Our parity behaviour:** the winning line pulses, other discs dim, success haptic, a result card ("You win!", move count, rematch record). The bubble subcaption reads "Ava wins!".
+- **Our parity behaviour:** the winning line pulses, other discs dim, success haptic, a result card ("You win!", move count, rematch record). The bubble subcaption reads "Game over · four in a row!".
 - **Eventual improvement:** beautiful themed result cards; Rivalry Sets.
 - **Status:** IMPROVED (logic tested; visuals NOT TESTED).
 

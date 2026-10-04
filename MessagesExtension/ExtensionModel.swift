@@ -21,8 +21,6 @@ final class ExtensionModel {
     var presentationStyle: MSMessagesAppPresentationStyle = .compact
     var isWorking = false
     var errorText: String?
-    /// `$<localParticipantIdentifier>`; Messages shows it as the sender's name in captions.
-    var senderToken: String?
 
     @ObservationIgnored let analytics: AnalyticsSink = NoOpAnalytics()
     @ObservationIgnored let controller: ConversationController
@@ -46,7 +44,7 @@ final class ExtensionModel {
     // MARK: Intents
 
     func select(_ game: GameDefinition) {
-        guard let start = controller.startMatch(game: game.id, senderToken: senderToken) else {
+        guard let start = controller.startMatch(game: game.id) else {
             errorText = "That game isn't available in this version."
             return
         }
@@ -56,7 +54,7 @@ final class ExtensionModel {
     func rematch() {
         guard case .play(let session) = screen else { return }
         do {
-            begin(try controller.startRematch(from: session, senderToken: senderToken))
+            begin(try controller.startRematch(from: session))
         } catch {
             errorText = "Couldn't start a rematch."
         }
@@ -73,7 +71,7 @@ final class ExtensionModel {
     func play(column: Int) {
         guard !isWorking, case .play(let session) = screen else { return }
         do {
-            let outgoing = try controller.prepareMove(.fourInARow(.init(column: column)), in: session, senderToken: senderToken)
+            let outgoing = try controller.prepareMove(.fourInARow(.init(column: column)), in: session)
             screenBeforeInsert = screen
             // Show the move landing immediately; the board is now read-only until
             // the message is sent or the draft is reopened.

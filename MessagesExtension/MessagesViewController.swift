@@ -83,7 +83,6 @@ final class MessagesViewController: MSMessagesAppViewController {
     }
 
     private func show(_ message: MSMessage?, in conversation: MSConversation) {
-        model.senderToken = "$\(conversation.localParticipantIdentifier.uuidString)"
         if let message, let session = message.session, let url = message.url,
            let snapshot = try? GameDecoders.decode(url) {
             sessions[snapshot.matchID] = session
@@ -126,11 +125,13 @@ final class MessagesViewController: MSMessagesAppViewController {
 
         model.isWorking = true
         conversation.insert(message) { [weak self] error in
-            DispatchQueue.main.async {
+            // The completion handler runs on a background queue.
+            let failure = error?.localizedDescription
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.model.isWorking = false
-                if let error {
-                    self.model.insertFailed("Couldn't add the move to the message box (\(error.localizedDescription)).")
+                if let failure {
+                    self.model.insertFailed("Couldn't add the move to the message box (\(failure)).")
                     return
                 }
                 self.model.controller.didInsert(outgoing)

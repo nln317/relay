@@ -10,7 +10,7 @@ is tracked separately in TESTING.md. Last updated 2026-10-04 (end of Milestone 1
 | Entry from "+" drawer | Opens compact game grid | Messages extension opens compact on the picker | PARTIAL (device-unverified) | Companion app teaches "+ → More → Relay" and drag-to-top | P0 |
 | Game picker | Grid of 24 tiles, some with mode screens | One-tap list of playable games only | PARITY | Recents/Favourites/sections once catalogue ≥ 6 | P1 |
 | Start challenge | Invite with no move; recipient starts | Challenger's first move is the challenge (D-007); alternate on rematch | IMPROVED | Saves one round trip | P0 |
-| Turn message | Image + caption bubble | Template layout, rendered board, `$participant` caption, one MSSession per match | PARTIAL | Themed result cards later | P0 |
+| Turn message | Image + caption bubble | Template layout, rendered board, neutral caption, one MSSession per match | PARTIAL | Themed result cards later | P0 |
 | Received-turn UX | Tap opens game | Tap opens expanded board; opponent's last disc replays falling | IMPROVED | Last-move replay for all games | P0 |
 | Make and send move | Adjust then send; no undo after send | Tap column → drop → auto-insert → user taps send; reopen staged bubble to change move | PARITY+ | Change-move without re-roll exploits | P0 |
 | Waiting state | "Waiting for opponent" | "Their move" status on own bubble | PARITY | — | P0 |

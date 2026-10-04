@@ -69,5 +69,5 @@ Apple's. The on-device checklist below is still required.
 | Game already finished | ✓ | NOT TESTED |
 | Rematch | ✓ | NOT TESTED |
 
-Also verify on device: `$participant` caption substitution, bubble image rendering, compact →
+Also verify on device: bubble image rendering in sent and received bubbles, compact →
 expanded transitions, haptics, VoiceOver column labels, iOS 17 drag-to-resize.
