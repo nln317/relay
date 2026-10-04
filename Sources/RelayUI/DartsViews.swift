@@ -749,6 +749,7 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
             .onChange(of: darts) { old, new in
                 launchFlights(from: old, to: new, layout: layout)
             }
+            .task(id: clearingKey) { await clearOtherPlayersDarts() }
         }
         .background {
             ZStack {
@@ -950,7 +951,6 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
     private func start(layout: Layout) {
         guard replaysDarts, !darts.isEmpty else {
             landed = Set(darts.map(\.id))
-            clearOthersSoon(after: 0.6)
             return
         }
         landed = []
@@ -1019,22 +1019,32 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
         if flights.isEmpty {
             replayedPoints = nil
             withAnimation(.easeOut(duration: 0.2).delay(0.12)) { dartInHand = true }
-            clearOthersSoon(after: 1.1)
         }
     }
 
-    /// When it is someone's turn to throw, the darts left by the other player come out of
-    /// the board after a moment to read them, so each visit starts on a clean board.
-    private func clearOthersSoon(after delay: Double) {
-        guard canThrow, let thrower else { return }
-        let others = Set(darts.filter { $0.seat != thrower && landed.contains($0.id) }.map(\.id))
-        guard !others.isEmpty else { return }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(delay))
-            // Not while a dart is in the air; its landing tries again.
-            guard flights.isEmpty else { return }
-            withAnimation(.easeOut(duration: 0.35)) { cleared.formUnion(others.intersection(landed)) }
-        }
+    /// What decides whether the other player's darts should come out of the board. Any
+    /// change (a new dart, a flight still landing, the turn passing) restarts the wait.
+    private struct ClearingKey: Hashable {
+        let thrower: Seat?
+        let canThrow: Bool
+        let settled: Bool
+        let darts: [Int]
+    }
+
+    private var clearingKey: ClearingKey {
+        ClearingKey(thrower: thrower, canThrow: canThrow, settled: flights.isEmpty, darts: darts.map(\.id))
+    }
+
+    /// When it is someone's turn to throw and nothing is in the air, the darts left by the
+    /// other player come out of the board after a moment to read them, so each visit starts
+    /// on a clean board. Only darts that are not the thrower's are ever taken out.
+    private func clearOtherPlayersDarts() async {
+        guard canThrow, let thrower, flights.isEmpty else { return }
+        let others = Set(darts.filter { $0.seat != thrower }.map(\.id))
+        guard !others.subtracting(cleared).isEmpty else { return }
+        try? await Task.sleep(for: .seconds(1.1))
+        guard !Task.isCancelled else { return }
+        withAnimation(.easeOut(duration: 0.35)) { cleared.formUnion(others) }
     }
 
     // MARK: Accessibility
