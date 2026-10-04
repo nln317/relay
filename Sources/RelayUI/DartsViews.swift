@@ -24,15 +24,12 @@ public struct PlacedDart: Equatable, Identifiable, Sendable {
 /// and nothing borrowed from another app): sand and slate beds, Ember and Tide scoring rings.
 public struct DartsBoardView: View {
     let darts: [PlacedDart]
-    /// Where the player is aiming, while they hold a dart.
-    let reticle: Darts.Hit?
     /// False for still images (bubble art), which render before any animation runs.
     let animatesDarts: Bool
     @Environment(\.seatPalette) private var palette
 
-    public init(darts: [PlacedDart], reticle: Darts.Hit? = nil, animatesDarts: Bool = true) {
+    public init(darts: [PlacedDart], animatesDarts: Bool = true) {
         self.darts = darts
-        self.reticle = reticle
         self.animatesDarts = animatesDarts
     }
 
@@ -49,12 +46,6 @@ public struct DartsBoardView: View {
                     DartMarker(colour: palette.colour(dart.seat), animates: animatesDarts)
                         .frame(width: side * 0.055, height: side * 0.055)
                         .position(point(for: dart.hit, side: side, scale: scale))
-                }
-                if let reticle {
-                    Reticle()
-                        .frame(width: side * 0.12, height: side * 0.12)
-                        .position(point(for: reticle, side: side, scale: scale))
-                        .allowsHitTesting(false)
                 }
             }
             .frame(width: side, height: side)
@@ -120,6 +111,7 @@ public struct DartsBoardView: View {
 
 /// A dart's mark on the board. It thuds in where it landed: it starts larger and settles
 /// in place, scaling about its own centre so it never appears to fly across the board.
+/// It waits for the thrown dart's flight (`DartsThrowView.flightDuration`) to arrive.
 private struct DartMarker: View {
     let colour: Color
     @State private var landed: Bool
@@ -139,43 +131,31 @@ private struct DartMarker: View {
         .scaleEffect(landed ? 1 : 2.4)
         .opacity(landed ? 1 : 0)
         .onAppear {
-            withAnimation(.easeIn(duration: 0.16)) { landed = true }
+            withAnimation(.easeIn(duration: 0.12).delay(DartsThrowView.flightDuration)) { landed = true }
         }
     }
 }
 
-/// White sight with a dark outline, so it reads over the light sand beds as well as the dark ones.
-private struct Reticle: View {
-    var body: some View {
-        ZStack {
-            sight(colour: .black.opacity(0.7), width: 4.5)
-            sight(colour: .white, width: 2)
-        }
-    }
-
-    private func sight(colour: Color, width: CGFloat) -> some View {
-        ZStack {
-            Circle().strokeBorder(colour, lineWidth: width)
-            Rectangle().fill(colour).frame(width: width)
-                .padding(.vertical, -6)
-            Rectangle().fill(colour).frame(height: width)
-                .padding(.horizontal, -6)
-        }
-    }
-}
-
-/// The interactive throwing area: drag anywhere on the board to aim (the sight sits a
-/// little above your finger so you can see it), hold steady, let go to throw. The sight
-/// drifts gently, more the longer you hold. VoiceOver users get aim-and-throw actions.
+/// The throwing area: the board, with a dart held below it. Swipe the dart up to throw.
+/// How hard you flick sets how high it flies and the line of the flick sets left and
+/// right (`DartsAim.flickTarget`). The landing point is committed the moment the dart
+/// leaves your hand; the flight is only animation. VoiceOver users get throw actions.
 public struct DartsThrowView: View {
     let darts: [PlacedDart]
     let canThrow: Bool
     let suggestedTarget: DartsBoard.Segment?
     let onThrow: (Darts.Hit) -> Void
 
-    @State private var aim: Darts.Hit?
-    @State private var heldSince: Date?
-    @State private var phase = 0.0
+    /// Finger movement while the dart is held.
+    @State private var hold: CGSize = .zero
+    /// The dart in the air: where its tip is and how small it has got.
+    @State private var flight: (tip: CGPoint, scale: CGFloat)?
+    @State private var dartVisible = true
+
+    /// Seconds from release to the dart hitting the board.
+    static let flightDuration = 0.24
+    /// Height of the area below the board where the dart is held, as a share of the board.
+    private static let handHeight: CGFloat = 0.36
 
     public init(darts: [PlacedDart], canThrow: Bool, suggestedTarget: DartsBoard.Segment? = nil, onThrow: @escaping (Darts.Hit) -> Void) {
         self.darts = darts
@@ -186,21 +166,31 @@ public struct DartsThrowView: View {
 
     public var body: some View {
         GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height)
-            let scale = side / 2 / drawnRadius
-            TimelineView(.animation(minimumInterval: 1 / 60, paused: heldSince == nil)) { timeline in
-                DartsBoardView(darts: darts, reticle: reticle(at: timeline.date))
+            let side = min(proxy.size.width, proxy.size.height / (1 + Self.handHeight))
+            let length = side * Self.handHeight * 0.8
+            ZStack(alignment: .topLeading) {
+                DartsBoardView(darts: darts)
                     .frame(width: side, height: side)
-                    .contentShape(Rectangle())
-                    .gesture(aimGesture(side: side, scale: scale), including: canThrow ? .all : .subviews)
+                if dartVisible {
+                    ThrowingDart()
+                        .frame(width: length * 0.3, height: length)
+                        .scaleEffect(flight?.scale ?? 1, anchor: .top)
+                        .position(dartCentre(side: side, length: length))
+                        .opacity(canThrow || flight != nil ? 1 : 0.35)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
             }
+            .frame(width: side, height: side * (1 + Self.handHeight))
+            .contentShape(Rectangle())
+            .gesture(throwGesture(side: side), including: canThrow ? .all : .subviews)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .aspectRatio(1, contentMode: .fit)
+        .aspectRatio(1 / (1 + Self.handHeight), contentMode: .fit)
         .sensoryFeedback(.impact(weight: .medium, intensity: 0.9), trigger: darts.count)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityDescription)
-        .accessibilityHint(canThrow ? "Use the actions to aim and throw a dart." : "")
+        .accessibilityHint(canThrow ? "Use the actions to throw a dart." : "")
         .accessibilityActions {
             if canThrow {
                 ForEach(accessibilityTargets, id: \.self) { target in
@@ -210,40 +200,73 @@ public struct DartsThrowView: View {
         }
     }
 
-    private func reticle(at date: Date) -> Darts.Hit? {
-        guard let aim, let heldSince else { return nil }
-        let sway = DartsAim.sway(heldFor: date.timeIntervalSince(heldSince), phase: phase)
-        return Darts.Hit(x: aim.x + sway.x, y: aim.y + sway.y)
+    /// Where the dart's tip rests: centred, a little way into the area below the board.
+    private func restingTip(side: CGFloat) -> CGPoint {
+        CGPoint(x: side / 2, y: side * (1 + Self.handHeight * 0.12))
     }
 
-    private func aimGesture(side: CGFloat, scale: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+    private func dartCentre(side: CGFloat, length: CGFloat) -> CGPoint {
+        // The tip is the top edge of the dart; scaling keeps the top fixed.
+        let tip = flight?.tip ?? CGPoint(x: restingTip(side: side).x + hold.width, y: restingTip(side: side).y + hold.height)
+        return CGPoint(x: tip.x, y: tip.y + length / 2)
+    }
+
+    private func throwGesture(side: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 2)
             .onChanged { value in
-                guard canThrow else { return }
-                if heldSince == nil {
-                    heldSince = Date()
-                    phase = Double.random(in: 0..<(2 * .pi))
-                }
-                // The sight sits above the fingertip so the finger never hides it.
-                let lift = side * 0.16
-                let x = (value.location.x - side / 2) / scale
-                let y = (side / 2 - (value.location.y - lift)) / scale
-                aim = Darts.Hit(x: Int(x.rounded()), y: Int(y.rounded()))
+                // Only a swipe that starts on or below the bottom of the board picks up the dart.
+                guard canThrow, flight == nil, value.startLocation.y > side * 0.85 else { return }
+                hold = value.translation
             }
-            .onEnded { _ in
-                defer {
-                    aim = nil
-                    heldSince = nil
+            .onEnded { value in
+                guard canThrow, flight == nil, value.startLocation.y > side * 0.85 else {
+                    hold = .zero
+                    return
                 }
-                guard canThrow, let target = reticle(at: Date()) else { return }
+                let target = DartsAim.flickTarget(
+                    start: (Double(value.startLocation.x / side), Double(value.startLocation.y / side)),
+                    release: (Double(value.location.x / side), Double(value.location.y / side)),
+                    velocity: (Double(value.velocity.width / side), Double(value.velocity.height / side))
+                )
+                guard let target else {
+                    withAnimation(.spring(duration: 0.3, bounce: 0.35)) { hold = .zero }
+                    return
+                }
+                let aim = Darts.Hit(x: Int(((target.x - 0.5) * 2 * drawnRadius).rounded()), y: Int(((0.5 - target.y) * 2 * drawnRadius).rounded()))
+                let speed = (value.velocity.width * value.velocity.width + value.velocity.height * value.velocity.height).squareRoot() / side
                 var rng = SystemRandomNumberGenerator()
-                onThrow(DartsAim.landing(aim: target, scatter: DartsAim.releaseScatter, using: &rng))
+                let hit = DartsAim.landing(aim: aim, scatter: DartsAim.scatter(forSpeed: Double(speed)), using: &rng)
+                fly(to: hit, side: side)
+                onThrow(hit)
             }
+    }
+
+    /// Animates the dart from the hand to `hit`, then puts a fresh one back in hand.
+    private func fly(to hit: Darts.Hit, side: CGFloat) {
+        let scale = side / 2 / drawnRadius
+        // Far misses still fly off the board, just not off the screen.
+        let limit = drawnRadius * 1.2
+        let x = min(max(Double(hit.x), -limit), limit), y = min(max(Double(hit.y), -limit), limit)
+        let landing = CGPoint(x: side / 2 + x * scale, y: side / 2 - y * scale)
+        let resting = restingTip(side: side)
+        flight = (CGPoint(x: resting.x + hold.width, y: resting.y + hold.height), 1)
+        hold = .zero
+        withAnimation(.easeOut(duration: Self.flightDuration)) {
+            flight = (landing, 0.3)
+        } completion: {
+            var quiet = Transaction()
+            quiet.disablesAnimations = true
+            withTransaction(quiet) {
+                flight = nil
+                dartVisible = false
+            }
+            withAnimation(.easeIn(duration: 0.2).delay(0.15)) { dartVisible = true }
+        }
     }
 
     private func throwAt(_ segment: DartsBoard.Segment) {
         var rng = SystemRandomNumberGenerator()
-        // Without a steady-hand sway to beat, VoiceOver throws use a slightly wider scatter.
+        // Without a flick to judge, VoiceOver throws use a slightly wider scatter.
         onThrow(DartsAim.landing(aim: DartsBoard.target(for: segment), scatter: DartsAim.releaseScatter * 2, using: &rng))
     }
 
@@ -261,6 +284,43 @@ public struct DartsThrowView: View {
         guard !darts.isEmpty else { return "Dartboard" }
         let spoken = darts.map { DartsBoard.segment(at: $0.hit).spokenName }
         return "Dartboard. Darts: \(spoken.joined(separator: ", "))."
+    }
+}
+
+/// The dart in hand, drawn pointing up: steel point, slate barrel with Ember grip
+/// bands, a thin shaft and Tide flights. Our own drawing, sized by its frame.
+private struct ThrowingDart: View {
+    var body: some View {
+        Canvas { context, size in
+            let w = size.width, h = size.height, mid = w / 2
+            func bar(_ top: CGFloat, _ bottom: CGFloat, width: CGFloat) -> Path {
+                Path(roundedRect: CGRect(x: mid - width / 2, y: h * top, width: width, height: h * (bottom - top)), cornerRadius: width / 2)
+            }
+            var point = Path()
+            point.move(to: CGPoint(x: mid, y: 0))
+            point.addLine(to: CGPoint(x: mid + w * 0.05, y: h * 0.24))
+            point.addLine(to: CGPoint(x: mid - w * 0.05, y: h * 0.24))
+            point.closeSubpath()
+            context.fill(point, with: .color(Color(white: 0.82)))
+
+            var flights = Path()
+            flights.move(to: CGPoint(x: mid, y: h * 0.62))
+            flights.addLine(to: CGPoint(x: w, y: h * 0.9))
+            flights.addLine(to: CGPoint(x: w * 0.92, y: h))
+            flights.addLine(to: CGPoint(x: mid, y: h * 0.93))
+            flights.addLine(to: CGPoint(x: w * 0.08, y: h))
+            flights.addLine(to: CGPoint(x: 0, y: h * 0.9))
+            flights.closeSubpath()
+            context.fill(flights, with: .color(RelayTheme.disc(.two)))
+            context.stroke(flights, with: .color(.black.opacity(0.35)), lineWidth: 1)
+
+            context.fill(bar(0.56, 0.98, width: w * 0.1), with: .color(Color(white: 0.3)))
+            context.fill(bar(0.22, 0.6, width: w * 0.3), with: .color(Color(red: 0.24, green: 0.27, blue: 0.36)))
+            for band in [0.32, 0.4, 0.48] {
+                context.fill(bar(band, band + 0.035, width: w * 0.3), with: .color(RelayTheme.disc(.one)))
+            }
+        }
+        .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
     }
 }
 

@@ -310,7 +310,7 @@ struct DartsPlayContent: View {
             } else if let ownProgress, !ownProgress.darts.isEmpty {
                 StatusLine(symbol: "scope", text: "Dart \(ownProgress.darts.count + 1) of \(Darts.dartsPerVisit).")
             } else {
-                StatusLine(symbol: "hand.draw", text: "Drag on the board to aim. Let go to throw.")
+                StatusLine(symbol: "hand.draw", text: "Swipe the dart up at the board.")
             }
         case .waitingForOpponent:
             StatusLine(symbol: "hourglass", text: "Their throw. Their reply will show up in this chat.")

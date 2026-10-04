@@ -184,8 +184,40 @@ struct DartsBotTests {
         #expect(bot.target(remaining: 150) == .init(ring: .treble, number: 20))
     }
 
-    @Test func swayGrowsTheLongerYouHold() {
-        #expect(DartsAim.swayAmplitude(heldFor: 0) < DartsAim.swayAmplitude(heldFor: 2))
-        #expect(DartsAim.swayAmplitude(heldFor: 3) == DartsAim.swayAmplitude(heldFor: 10))
+    @Test func flickSpeedSetsHeightAndItsLineSetsDirection() throws {
+        let start = (x: 0.5, y: 1.3)
+        let release = (x: 0.5, y: 1.0)
+        // A firm, straight flick from the middle reaches the bull.
+        let firm = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -3.67)))
+        #expect(abs(firm.x - 0.5) < 0.001)
+        #expect(abs(firm.y - 0.5) < 0.01)
+        // Harder flies higher (smaller y), softer drops lower.
+        let hard = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -5.2)))
+        #expect(hard.y < firm.y)
+        let soft = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -1.5)))
+        #expect(soft.y > firm.y)
+        // A flick angled left lands left; releasing off-centre lands off-centre.
+        let left = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (-0.6, -3.67)))
+        #expect(left.x < 0.45)
+        let offCentre = try #require(DartsAim.flickTarget(start: (0.7, 1.3), release: (0.7, 1.0), velocity: (0, -3.67)))
+        #expect(abs(offCentre.x - 0.7) < 0.001)
+        // A tap, a downward drag, or stopping before letting go is not a throw.
+        #expect(DartsAim.flickTarget(start: start, release: start, velocity: (0, 0)) == nil)
+        #expect(DartsAim.flickTarget(start: start, release: (0.5, 1.4), velocity: (0, 2)) == nil)
+        #expect(DartsAim.flickTarget(start: start, release: release, velocity: (0, -0.2)) == nil)
+    }
+
+    @Test func aFlickLandsOnTheBoardSegmentItWasAimedAt() throws {
+        // Board widths to board units, as the throw view converts them.
+        func hit(_ target: (x: Double, y: Double)) -> Darts.Hit {
+            Darts.Hit(x: Int(((target.x - 0.5) * 4_500).rounded()), y: Int(((0.5 - target.y) * 4_500).rounded()))
+        }
+        let up = try #require(DartsAim.flickTarget(start: (0.5, 1.3), release: (0.5, 1.0), velocity: (0, -5.2)))
+        #expect(DartsBoard.segment(at: hit(up)).number == 20)
+    }
+
+    @Test func wildFlicksScatterMore() {
+        #expect(DartsAim.scatter(forSpeed: 4) == DartsAim.releaseScatter)
+        #expect(DartsAim.scatter(forSpeed: 10) > DartsAim.releaseScatter)
     }
 }

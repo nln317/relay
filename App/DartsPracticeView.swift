@@ -212,6 +212,6 @@ struct DartsPracticeView: View {
         guard let toAct else { return "" }
         let thrown = model.progress?.darts.count ?? 0
         let who = model.humanSeat == nil ? "\(RelayTheme.discName(toAct)): " : ""
-        return thrown == 0 ? "\(who)Drag on the board to aim. Let go to throw." : "\(who)Dart \(thrown + 1) of \(Darts.dartsPerVisit)."
+        return thrown == 0 ? "\(who)Swipe the dart up at the board." : "\(who)Dart \(thrown + 1) of \(Darts.dartsPerVisit)."
     }
 }

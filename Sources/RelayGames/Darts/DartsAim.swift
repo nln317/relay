@@ -4,19 +4,40 @@ import RelayCore
 /// decides where its darts land and the rules only score them (docs/ARCHITECTURE.md,
 /// "Skill games"). Kept here, pure and seedable, so the practice bot and tests share it.
 public enum DartsAim {
-    /// How far the aim drifts while the player holds the dart, in tenths of a millimetre.
-    /// It starts steady and grows the longer they hold, which rewards a decisive throw.
-    public static func swayAmplitude(heldFor seconds: Double) -> Double {
-        60 + 45 * min(max(seconds, 0), 3)
+    /// Where a flicked dart heads, before scatter. Nil when the gesture was not a throw
+    /// (too slow, sideways or downwards), so the dart just goes back to hand.
+    ///
+    /// Everything is measured in board widths with y growing downwards: the board spans
+    /// 0...1 on both axes and the dart is held below it. That keeps the feel identical
+    /// on every screen size. Speed sets how high the dart flies (a soft flick drops into
+    /// the bottom of the board, a hard one reaches the top); the line of the flick sets
+    /// where it goes left to right.
+    /// - Parameters:
+    ///   - start: where the swipe began.
+    ///   - release: where the finger let go.
+    ///   - velocity: release velocity in board widths per second.
+    public static func flickTarget(start: (x: Double, y: Double), release: (x: Double, y: Double), velocity: (x: Double, y: Double)) -> (x: Double, y: Double)? {
+        let upwardSpeed = -velocity.y
+        guard upwardSpeed >= minimumThrowSpeed, start.y > release.y else { return nil }
+        let height = lowestReach - upwardSpeed * reachPerSpeed
+        // Follow the line of the flick up to that height. A near-flat flick would run off
+        // to infinity, so the slope is capped (the rules clamp anything off the board).
+        let slope = min(max(velocity.x / upwardSpeed, -1.5), 1.5)
+        return (release.x + slope * max(0, release.y - height), height)
     }
 
-    /// Hand sway at `seconds` after picking up the dart: a slow, smooth wander.
-    /// `phase` varies it per dart so no two throws drift identically.
-    public static func sway(heldFor seconds: Double, phase: Double) -> (x: Int, y: Int) {
-        let amplitude = swayAmplitude(heldFor: seconds)
-        let x = amplitude * sine(2 * .pi * seconds / 1.3 + phase)
-        let y = amplitude * 0.8 * sine(2 * .pi * seconds / 1.75 + phase * 1.7)
-        return (Int(x.rounded()), Int(y.rounded()))
+    /// Slower than this (board widths per second) and the dart is not thrown.
+    public static let minimumThrowSpeed = 1.0
+    /// Height reached by the softest throw: a little below the board, so it misses.
+    public static let lowestReach = 1.05
+    /// How much higher each extra board width per second of flick carries the dart.
+    /// About 3.7 widths a second (a firm flick) reaches the bull.
+    public static let reachPerSpeed = 0.15
+
+    /// Scatter grows when the flick is wild (much harder than the top of the board
+    /// needs), in tenths of a millimetre.
+    public static func scatter(forSpeed speed: Double) -> Double {
+        releaseScatter + 30 * max(0, speed - 7)
     }
 
     /// Release scatter added to every throw, standard deviation in tenths of a millimetre.

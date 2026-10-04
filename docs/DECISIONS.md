@@ -136,10 +136,14 @@ its landing is shown. Reopening the extension resumes the visit; deleting the st
 keeps the visit, which can only be re-sent unchanged ("Send your darts"). Skill games cannot
 swap a staged move (`allowsChangingStagedMove`), unlike Four in a Row (D-020).
 
-**D-029 Aim by dragging, throw by letting go.** The sight sits above the finger and drifts
-slowly, more the longer the player holds, then a small scatter is added on release. Chosen
-over a flick because it is easier to learn, works one-handed in the Messages sheet, and maps
-to VoiceOver actions ("Throw at treble 20"). Revisit after device feedback.
+**D-029 Throw by flicking a dart held below the board** (revised 2026-10-04 after device
+feedback; it first used drag-to-aim with a drifting sight). The player swipes the dart up:
+release speed sets how high it flies (a soft flick drops low, about 3.7 board widths a
+second reaches the bull, harder goes higher), the line of the flick sets left and right,
+and a small scatter is added, more for a wild flick. Measured in board widths so every
+screen size feels the same. The landing point is committed when the dart leaves the hand;
+the flight is animation only. VoiceOver keeps "Throw at treble 20"-style actions. Constants
+live in `DartsAim` and are expected to be tuned after more play.
 
 **D-030 Our own dartboard look.** Standard number order and ring proportions (generic
 sporting layout) in Relay's palette: sand and slate beds, Ember and Tide scoring rings.
