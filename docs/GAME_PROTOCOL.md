@@ -36,6 +36,7 @@ https://relay.invalid/play?v=1&g=four-in-a-row&p=<base64url(JSON envelope)>
 | `s` | series | Optional `{w1,w2,d}` rematch record in this match's seat numbering |
 | `r` | rivalryID | Reserved for Rivalry Sets; unused in v1 |
 | `lo` | loadouts | Optional `{"1": {"items": {slot: cosmeticID}}}`; presentation only |
+| `cs` | coloursSwapped | Optional `true` when seat one wears Tide, so each person keeps their colour across rematches (D-024); omitted when false |
 
 The game **state is never sent**. Receivers rebuild it by replaying `a` through the rules.
 

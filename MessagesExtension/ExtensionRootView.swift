@@ -33,7 +33,7 @@ struct ExtensionRootView: View {
         case .picker:
             GamePickerView { model.select($0) }
         case .problem(let error):
-            ProblemView(error: error)
+            ProblemView(error: error, onNewGame: model.newGame)
         case .play(let session):
             if model.presentationStyle == .compact {
                 CompactSessionCard(session: session, onOpen: model.expand)

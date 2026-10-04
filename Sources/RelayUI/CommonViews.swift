@@ -101,6 +101,7 @@ public struct PlayersHeader: View {
     let localSeat: Seat?
     let toAct: Seat?
     let series: SeriesTally
+    @Environment(\.seatPalette) private var palette
 
     public init(localSeat: Seat?, toAct: Seat?, series: SeriesTally) {
         self.localSeat = localSeat
@@ -124,7 +125,7 @@ public struct PlayersHeader: View {
     }
 
     private func name(_ seat: Seat) -> String {
-        guard let localSeat else { return RelayTheme.discName(seat) }
+        guard let localSeat else { return palette.name(seat) }
         return seat == localSeat ? "You" : "Them"
     }
 
@@ -143,7 +144,7 @@ public struct PlayersHeader: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(
-            Capsule().fill(toAct == seat ? RelayTheme.disc(seat).opacity(0.22) : Color.clear)
+            Capsule().fill(toAct == seat ? palette.colour(seat).opacity(0.22) : Color.clear)
         )
         .animation(.easeInOut(duration: 0.2), value: toAct)
         .accessibilityElement(children: .combine)
@@ -154,9 +155,11 @@ public struct PlayersHeader: View {
 /// Friendly, specific explanation for a message that cannot be opened.
 public struct ProblemView: View {
     let error: ProtocolError
+    let onNewGame: (() -> Void)?
 
-    public init(error: ProtocolError) {
+    public init(error: ProtocolError, onNewGame: (() -> Void)? = nil) {
         self.error = error
+        self.onNewGame = onNewGame
     }
 
     public var body: some View {
@@ -171,6 +174,12 @@ public struct ProblemView: View {
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(RelayTheme.textSecondary)
+            // Updating is the fix for newer messages; anything else, offer a fresh start.
+            if let onNewGame, !error.isFixedByUpdating {
+                Button("New game", action: onNewGame)
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.top, 8)
+            }
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

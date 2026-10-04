@@ -31,12 +31,35 @@ public enum RelayTheme {
     }
 }
 
+/// Which colour and mark each seat wears in the match on screen. Rematches renumber
+/// seats, so the header's `coloursSwapped` keeps each person's colour (D-024).
+public struct SeatPalette: Equatable, Sendable {
+    public var coloursSwapped: Bool
+
+    public init(coloursSwapped: Bool = false) {
+        self.coloursSwapped = coloursSwapped
+    }
+
+    /// The seat whose base colour and mark `seat` wears.
+    public func look(_ seat: Seat) -> Seat {
+        coloursSwapped ? seat.opponent : seat
+    }
+
+    public func colour(_ seat: Seat) -> Color { RelayTheme.disc(look(seat)) }
+    public func name(_ seat: Seat) -> String { RelayTheme.discName(look(seat)) }
+}
+
+extension EnvironmentValues {
+    @Entry public var seatPalette = SeatPalette()
+}
+
 /// A disc with a shape mark as well as a colour, so seats are distinguishable
-/// without colour vision (ring for seat one, dot for seat two).
+/// without colour vision (ring for Ember, dot for Tide).
 public struct DiscView: View {
     let seat: Seat
     var isHighlighted: Bool = false
     var isDimmed: Bool = false
+    @Environment(\.seatPalette) private var palette
 
     public init(seat: Seat, isHighlighted: Bool = false, isDimmed: Bool = false) {
         self.seat = seat
@@ -47,17 +70,18 @@ public struct DiscView: View {
     public var body: some View {
         GeometryReader { proxy in
             let size = min(proxy.size.width, proxy.size.height)
+            let look = palette.look(seat)
             ZStack {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [RelayTheme.disc(seat).opacity(1), RelayTheme.disc(seat).opacity(0.78)],
+                            colors: [RelayTheme.disc(look).opacity(1), RelayTheme.disc(look).opacity(0.78)],
                             center: .init(x: 0.35, y: 0.3),
                             startRadius: 0,
                             endRadius: size * 0.7
                         )
                     )
-                switch seat {
+                switch look {
                 case .one:
                     Circle()
                         .strokeBorder(Color.white.opacity(0.55), lineWidth: max(1.5, size * 0.07))

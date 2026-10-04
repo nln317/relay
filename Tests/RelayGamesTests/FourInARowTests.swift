@@ -327,6 +327,22 @@ struct RematchTests {
         #expect(byWinner.series == SeriesTally(seatOneWins: 1, seatTwoWins: 0, draws: 0))
     }
 
+    @Test func everyoneKeepsTheirColourAcrossRematches() throws {
+        // Game 1: Ava is seat one (Ember), Ben seat two (Tide). Ava wins.
+        let game1 = try play([0, 0, 1, 1, 2, 2, 3])
+        #expect(game1.header.coloursSwapped == false)
+
+        // Ben starts the rematch and becomes seat one, so seat one now wears Tide.
+        let game2Header = game1.rematchHeader(initiator: .two)
+        #expect(game2Header.coloursSwapped)
+
+        // Ava (now seat two) starts game 3 and is seat one again, back in Ember.
+        let game2 = try Match<FourInARow>.replay(header: game2Header, configuration: .standard, actions: [0, 1, 0, 1, 0, 1, 0].map(FourInARow.Action.init(column:)))
+        #expect(game2.rematchHeader(initiator: .two).coloursSwapped == false)
+        // Ben (seat one, wearing Tide) starts game 3 instead: still Tide.
+        #expect(game2.rematchHeader(initiator: .one).coloursSwapped)
+    }
+
     @Test func drawsAreCounted() throws {
         let sequence = [3, 4, 4, 6, 0, 3, 5, 2, 6, 5, 0, 6, 5, 0, 3, 6, 5, 6, 1, 3, 1, 3, 6, 5, 2, 0, 5, 3, 4, 4, 0, 1, 1, 1, 0, 1, 4, 2, 4, 2, 2, 2]
         let match = try play(sequence)

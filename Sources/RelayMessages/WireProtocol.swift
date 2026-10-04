@@ -70,6 +70,8 @@ struct WireEnvelope<Rules: GameRules>: Codable {
     var rivalryID: RivalryID?
     /// Equipped cosmetics per seat, keyed "1"/"2".
     var loadouts: [String: CosmeticLoadout]?
+    /// Seat one wears seat two's colour. Omitted when false.
+    var coloursSwapped: Bool?
 
     enum CodingKeys: String, CodingKey {
         case protocolVersion = "pv"
@@ -84,6 +86,7 @@ struct WireEnvelope<Rules: GameRules>: Codable {
         case series = "s"
         case rivalryID = "r"
         case loadouts = "lo"
+        case coloursSwapped = "cs"
     }
 }
 
@@ -136,7 +139,8 @@ public enum MatchCodec {
             rivalryID: match.header.rivalryID,
             loadouts: snapshot.loadouts.isEmpty
                 ? nil
-                : Dictionary(uniqueKeysWithValues: snapshot.loadouts.map { (String($0.key.rawValue), $0.value) })
+                : Dictionary(uniqueKeysWithValues: snapshot.loadouts.map { (String($0.key.rawValue), $0.value) }),
+            coloursSwapped: match.header.coloursSwapped ? true : nil
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -221,7 +225,8 @@ public enum MatchCodec {
             firstSeat: envelope.firstSeat,
             previousMatchID: envelope.previousMatchID,
             series: envelope.series ?? .empty,
-            rivalryID: envelope.rivalryID
+            rivalryID: envelope.rivalryID,
+            coloursSwapped: envelope.coloursSwapped ?? false
         )
         do {
             let match = try Match<Rules>.replay(header: matchHeader, configuration: envelope.configuration, actions: envelope.actions)

@@ -104,3 +104,10 @@ always matches the one it is entitled to.
 because the board, disc colours and bubble art were tuned on one dark palette. A light palette
 needs its own contrast checks for the Ember and Tide discs, so it is deferred to the art pass
 (M4) rather than shipped untested.
+
+**D-024 Each person keeps their colour across rematches.** Rematches renumber seats (the
+initiator becomes seat one, D-007), so colours used to follow the seat and swapped between
+games. The header now carries `coloursSwapped` (wire key `cs`, omitted when false), flipped
+whenever a seat-two player starts the rematch, and the UI paints seats through a
+`SeatPalette`. An additive optional key, so protocol v1 still applies; messages without it
+read as unswapped.

@@ -114,7 +114,7 @@ final class MessagesViewController: MSMessagesAppViewController {
         layout.subcaption = outgoing.caption.subcaption
         switch outgoing.snapshot {
         case .fourInARow(let snapshot):
-            layout.image = BubbleImageRenderer.image(for: snapshot.match.state)
+            layout.image = BubbleImageRenderer.image(for: snapshot.match)
         }
 
         let message = MSMessage(session: session)

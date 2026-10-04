@@ -27,7 +27,7 @@ public struct PlayScreen: View {
 
     private func content(_ match: Match<FourInARow>) -> some View {
         VStack(spacing: 14) {
-            PlayersHeader(localSeat: session.localSeat, toAct: match.outcome.seatToAct, series: match.header.series)
+            PlayersHeader(localSeat: session.localSeat, toAct: match.outcome.seatToAct, series: seriesIncludingThisGame(match))
 
             ForEach(Array(session.notices.enumerated()), id: \.offset) { _, notice in
                 NoticeBanner(notice: notice)
@@ -47,6 +47,12 @@ public struct PlayScreen: View {
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(RelayTheme.background)
+        .environment(\.seatPalette, SeatPalette(coloursSwapped: match.header.coloursSwapped))
+    }
+
+    /// The header's tally covers earlier games only; once this one ends, count it too.
+    private func seriesIncludingThisGame(_ match: Match<FourInARow>) -> SeriesTally {
+        match.outcome.isFinished ? match.header.series.recording(match.outcome) : match.header.series
     }
 
     private func ghost(for match: Match<FourInARow>) -> (cell: FourInARow.Cell, seat: Seat)? {
@@ -68,7 +74,7 @@ public struct PlayScreen: View {
         case .readyToSend:
             StatusLine(symbol: "arrow.up.circle", text: "Your move is in the message box. Tap send, or tap another column to change it.")
         case .finished:
-            ResultPanel(outcome: match.outcome, localSeat: session.localSeat, series: match.header.series.recording(match.outcome), turns: match.turnNumber, rematchKnown: session.knownRematch != nil, onRematch: onRematch, onNewGame: onNewGame)
+            ResultPanel(outcome: match.outcome, localSeat: session.localSeat, series: seriesIncludingThisGame(match), turns: match.turnNumber, rematchKnown: session.knownRematch != nil, onRematch: onRematch, onNewGame: onNewGame)
         }
     }
 }
@@ -119,6 +125,7 @@ public struct ResultPanel: View {
     let onRematch: () -> Void
     let onNewGame: () -> Void
     @State private var appeared = false
+    @Environment(\.seatPalette) private var palette
 
     public init(outcome: GameOutcome, localSeat: Seat?, series: SeriesTally, turns: Int, rematchKnown: Bool, onRematch: @escaping () -> Void, onNewGame: @escaping () -> Void) {
         self.outcome = outcome
@@ -164,7 +171,7 @@ public struct ResultPanel: View {
     private var headline: String {
         switch outcome {
         case .won(let winner):
-            guard let localSeat else { return "\(RelayTheme.discName(winner)) wins" }
+            guard let localSeat else { return "\(palette.name(winner)) wins" }
             return winner == localSeat ? "You win!" : "They win"
         case .draw:
             return "Draw"
@@ -174,7 +181,7 @@ public struct ResultPanel: View {
     }
 
     private var headlineColor: Color {
-        if let winner = outcome.winner { return RelayTheme.disc(winner) }
+        if let winner = outcome.winner { return palette.colour(winner) }
         return RelayTheme.textPrimary
     }
 

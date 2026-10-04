@@ -13,6 +13,9 @@ public struct MatchHeader: Codable, Equatable, Sendable {
     public var series: SeriesTally
     /// Reserved for Rivalry Sets (Milestone 5). Always nil in Milestone 1.
     public var rivalryID: RivalryID?
+    /// Seat one wears seat two's colour and mark. Rematches renumber seats (the
+    /// initiator becomes seat one); this keeps each person's colour across the chain.
+    public var coloursSwapped: Bool
 
     public init(
         matchID: MatchID = MatchID(),
@@ -21,7 +24,8 @@ public struct MatchHeader: Codable, Equatable, Sendable {
         firstSeat: Seat = .one,
         previousMatchID: MatchID? = nil,
         series: SeriesTally = .empty,
-        rivalryID: RivalryID? = nil
+        rivalryID: RivalryID? = nil,
+        coloursSwapped: Bool = false
     ) {
         self.matchID = matchID
         self.gameID = gameID
@@ -30,6 +34,7 @@ public struct MatchHeader: Codable, Equatable, Sendable {
         self.previousMatchID = previousMatchID
         self.series = series
         self.rivalryID = rivalryID
+        self.coloursSwapped = coloursSwapped
     }
 }
 
@@ -133,7 +138,8 @@ public struct Match<Rules: GameRules>: Equatable, Sendable {
     /// Creates the next match in a rematch chain, from the point of view of the
     /// player starting it (`initiator`, a seat in this match). The initiator
     /// becomes seat one of the new match; whoever moved first this time moves
-    /// second next time; the series tally carries over in the new numbering.
+    /// second next time; the series tally carries over in the new numbering; each
+    /// person keeps their colour.
     public func rematchHeader(initiator: Seat, newMatchID: MatchID = MatchID()) -> MatchHeader {
         let tallyAfterThis = header.series.recording(outcome)
         let tally = initiator == .one ? tallyAfterThis : tallyAfterThis.swapped
@@ -145,7 +151,9 @@ public struct Match<Rules: GameRules>: Equatable, Sendable {
             firstSeat: initiatorMovedFirst ? .two : .one,
             previousMatchID: header.matchID,
             series: tally,
-            rivalryID: header.rivalryID
+            rivalryID: header.rivalryID,
+            // A seat-two initiator moves to seat one, so the colours flip with them.
+            coloursSwapped: header.coloursSwapped != (initiator == .two)
         )
     }
 }

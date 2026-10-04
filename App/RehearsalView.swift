@@ -96,7 +96,7 @@ final class RehearsalModel {
         controller.didStartSending(url: outgoing.url)
         var image: UIImage?
         if case .fourInARow(let snapshot) = outgoing.snapshot {
-            image = BubbleImageRenderer.image(for: snapshot.match.state)
+            image = BubbleImageRenderer.image(for: snapshot.match)
         }
         let bubble = Bubble(url: outgoing.url, sender: viewer, caption: outgoing.caption, image: image)
         transcript.append(bubble)
@@ -123,7 +123,7 @@ struct RehearsalView: View {
                 case .picker:
                     GamePickerView { _ in model.start() }
                 case .problem(let error):
-                    ProblemView(error: error)
+                    ProblemView(error: error, onNewGame: model.newGame)
                 case .play(let session):
                     PlayScreen(session: session, onColumn: model.play(column:), onRematch: model.rematch, onNewGame: model.newGame)
                 }

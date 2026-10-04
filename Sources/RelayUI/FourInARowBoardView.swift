@@ -166,9 +166,11 @@ private struct FallingDisc: View {
 /// Static board art for the message bubble image. No animation, no interaction.
 public struct FourInARowBubbleArt: View {
     let state: FourInARow.State
+    let palette: SeatPalette
 
-    public init(state: FourInARow.State) {
+    public init(state: FourInARow.State, palette: SeatPalette = SeatPalette()) {
         self.state = state
+        self.palette = palette
     }
 
     public var body: some View {
@@ -182,6 +184,7 @@ public struct FourInARowBubbleArt: View {
                 .padding(18)
         }
         .frame(width: 300, height: 225)
+        .environment(\.seatPalette, palette)
     }
 }
 
@@ -189,8 +192,9 @@ public struct FourInARowBubbleArt: View {
 public enum BubbleImageRenderer {
     /// Renders the bubble image. Returns nil rather than failing the move: Messages
     /// still shows caption text without an image.
-    public static func image(for state: FourInARow.State) -> UIImage? {
-        let renderer = ImageRenderer(content: FourInARowBubbleArt(state: state))
+    public static func image(for match: Match<FourInARow>) -> UIImage? {
+        let palette = SeatPalette(coloursSwapped: match.header.coloursSwapped)
+        let renderer = ImageRenderer(content: FourInARowBubbleArt(state: match.state, palette: palette))
         renderer.scale = 3
         return renderer.uiImage
     }

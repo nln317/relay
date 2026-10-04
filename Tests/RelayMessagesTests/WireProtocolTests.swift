@@ -47,6 +47,14 @@ struct WireProtocolTests {
         #expect(snapshot.match.actions == [.init(column: 3), .init(column: 3)])
         #expect(snapshot.match.header.matchID == MatchID(string: "6F1B2C3D-0000-4000-8000-000000000001"))
         #expect(snapshot.match.outcome == .inProgress(toAct: .one))
+        #expect(snapshot.match.header.coloursSwapped == false)
+    }
+
+    @Test func swappedColoursRoundTrip() throws {
+        let header = MatchHeader(gameID: C4.gameID, rulesVersion: C4.rulesVersion, coloursSwapped: true)
+        let match = try Match<C4>.replay(header: header, configuration: .standard, actions: [.init(column: 2)])
+        let url = try MatchCodec.url(for: MatchSnapshot(match: match))
+        #expect(try MatchCodec.decode(url, as: C4.self).match.header.coloursSwapped)
     }
 
     @Test func fullGameFitsComfortablyInTheSizeBudget() throws {
