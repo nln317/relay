@@ -71,3 +71,8 @@ sent each bubble. Revisit on a real two-device test.
 **D-017 Generate the Xcode project with XcodeGen's setting presets.** The first generated
 project lacked presets (PRODUCT_NAME etc.) because the Linux XcodeGen binary could not find
 them, and Xcode failed with "Multiple commands produce .app". Regenerated with presets.
+
+**D-018 In-progress bubbles say "Your turn".** Owner request (2026-10-04): use GamePigeon's
+familiar wording instead of a move counter. The text addresses the recipient; the sender's
+own copy reads the same, which matches the benchmark. Finished games still say
+"Game over · four in a row!" or "Game over · it's a draw".

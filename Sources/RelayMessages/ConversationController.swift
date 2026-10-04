@@ -373,8 +373,8 @@ public final class ConversationController {
 
     // MARK: Captions
 
-    /// Captions are shown identically on both sides of the conversation, so they
-    /// never say "you" or name anyone (D-016). Messages already shows who sent a bubble.
+    /// Captions are shown identically on both sides of the conversation and never name
+    /// anyone (D-016). "Your turn" speaks to the recipient, as GamePigeon does (D-018).
     public static func caption(for snapshot: AnyMatchSnapshot) -> MessageCaption {
         let gameName = GameCatalog.definition(for: snapshot.gameID)?.displayName ?? "Relay"
         let subcaption: String
@@ -387,16 +387,10 @@ public final class ConversationController {
             subcaption = "Game over · it's a draw"
             summary = "Drew a game of \(gameName)"
         case .inProgress:
-            if snapshot.turnNumber == 0 {
-                subcaption = "New game · tap to play"
-                summary = "Sent a \(gameName) challenge"
-            } else if snapshot.turnNumber == 1 {
-                subcaption = "New game · first move played"
-                summary = "Started a game of \(gameName)"
-            } else {
-                subcaption = "Move \(snapshot.turnNumber) · tap to play"
-                summary = "Played \(gameName)"
-            }
+            // Owner decision (D-018): match GamePigeon's familiar "Your turn", addressed
+            // to the recipient, rather than a move counter.
+            subcaption = "Your turn"
+            summary = snapshot.turnNumber == 0 ? "Sent a \(gameName) challenge" : "Played \(gameName)"
         }
         return MessageCaption(
             caption: gameName,

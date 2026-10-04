@@ -93,7 +93,7 @@ struct ConversationFlowTests {
         #expect(fresh.localSeat == .one)
 
         var outgoing = try ava.controller.prepareMove(move(0), in: fresh)
-        #expect(outgoing.caption.subcaption == "New game · first move played")
+        #expect(outgoing.caption.subcaption == "Your turn")
         chat.insertAndSend(outgoing, from: ava)
 
         // Ava re-opens her own bubble: waiting.
@@ -156,7 +156,7 @@ struct ConversationFlowTests {
             return
         }
         #expect(challenge.snapshot.turnNumber == 0)
-        #expect(challenge.caption.subcaption == "New game · tap to play")
+        #expect(challenge.caption.subcaption == "Your turn")
         chat.insertAndSend(challenge, from: ava)
         #expect(try session(chat.open(chat.last, on: ava)).mode == .waitingForOpponent)
         let benSession = try session(chat.open(chat.last, on: ben))

@@ -4,8 +4,8 @@ Four evidence categories are kept separate (brief §36). "Tested" without a cate
 
 | Category | Meaning | Current state |
 |---|---|---|
-| AUTOMATED TESTED | `swift test` on RelayKit (unit + integration) | 81 tests passing on Linux (Swift 6.1.3) |
-| SIMULATOR TESTED | Built and exercised in the iOS Simulator | Not yet |
+| AUTOMATED TESTED | `swift test` on RelayKit (unit + integration) | 81 tests passing on Linux (Swift 6.1.3) and macOS (Swift 6.3.3) |
+| SIMULATOR TESTED | Built and exercised in the iOS Simulator | Partial: app, practice, extension pick → move → insert → send (iOS 26.5). See STATUS.md |
 | PHYSICAL DEVICE TESTED | Run on an iPhone | Not yet |
 | TWO-DEVICE MESSAGES TESTED | Two iPhones, two Apple Accounts, real conversation | Not yet |
 
