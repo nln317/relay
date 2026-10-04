@@ -49,33 +49,41 @@ struct ExtensionRootView: View {
     }
 }
 
-/// In the compact drawer the board would be cramped, so show a summary and one
-/// button that expands to the full board.
+/// In the compact drawer the board would be cramped, so show the game's picture (the
+/// same one as the bubble) and one big button that expands to the full board.
 struct CompactSessionCard: View {
     let session: PlaySession
     let onOpen: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            Text(GameCatalog.definition(for: session.snapshot.gameID)?.displayName ?? "Game")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(RelayTheme.textPrimary)
-            Text(status)
-                .font(.subheadline)
-                .foregroundStyle(RelayTheme.textSecondary)
-            Button(session.mode == .yourTurn ? "Play your move" : "Open board", action: onOpen)
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal, 32)
+        HStack(spacing: 16) {
+            GameSnapshotArt(snapshot: session.snapshot)
+                .scaleEffect(0.5)
+                .frame(width: 150, height: 112.5)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+                .accessibilityHidden(true)
+            VStack(spacing: 10) {
+                Text(status.uppercased())
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.7)
+                Button(session.mode == .yourTurn ? "Play" : "Open", action: onOpen)
+                    .buttonStyle(GameButtonStyle())
+            }
+            .frame(maxWidth: .infinity)
         }
-        .padding()
+        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(white: 0.1).ignoresSafeArea())
     }
 
     private var status: String {
         switch session.mode {
-        case .yourTurn: "Your move"
-        case .waitingForOpponent: "Waiting for their move"
-        case .readyToSend: "Your move is ready. Tap send."
+        case .yourTurn: "Your turn"
+        case .waitingForOpponent: "Waiting for opponent..."
+        case .readyToSend: "Tap send to finish your turn"
         case .finished: "Game over"
         }
     }

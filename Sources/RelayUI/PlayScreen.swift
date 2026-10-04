@@ -365,6 +365,24 @@ extension PlaySession.Notice {
     }
 }
 
+/// The bubble picture for any game's snapshot, as a live view (the compact drawer shows it).
+public struct GameSnapshotArt: View {
+    let snapshot: AnyMatchSnapshot
+
+    public init(snapshot: AnyMatchSnapshot) {
+        self.snapshot = snapshot
+    }
+
+    public var body: some View {
+        switch snapshot {
+        case .fourInARow(let snapshot):
+            FourInARowBubbleArt(state: snapshot.match.state, palette: SeatPalette(coloursSwapped: snapshot.match.header.coloursSwapped))
+        case .darts(let snapshot):
+            DartsBubbleArt(state: snapshot.match.state, palette: SeatPalette(coloursSwapped: snapshot.match.header.coloursSwapped))
+        }
+    }
+}
+
 extension BubbleImageRenderer {
     /// The bubble image for any game's snapshot.
     @MainActor

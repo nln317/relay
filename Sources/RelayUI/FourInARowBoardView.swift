@@ -199,6 +199,25 @@ private struct FallingDisc: View {
 }
 
 /// Static board art for the message bubble image. No animation, no interaction.
+/// The dark strip along the bottom of a bubble picture, in white capitals: "YOUR TURN",
+/// like the classic iMessage games' bubbles (D-031). The same picture is shown on both
+/// sides, so it speaks to whoever has to move next.
+struct BubbleStrip: View {
+    let text: String
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 15, weight: .black, design: .rounded))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(Color(white: 0.12))
+    }
+}
+
 public struct FourInARowBubbleArt: View {
     let state: FourInARow.State
     let palette: SeatPalette
@@ -208,11 +227,20 @@ public struct FourInARowBubbleArt: View {
         self.palette = palette
     }
 
+    private var caption: String {
+        if state.outcome.isFinished { return "Game over" }
+        let started = state.discs.contains { $0.contains { $0 != nil } }
+        return started ? "Your turn" : "Let's play Four in a Row!"
+    }
+
     public var body: some View {
-        ZStack {
-            LinearGradient(colors: [Color(white: 0.88), Color(white: 0.74)], startPoint: .top, endPoint: .bottom)
-            FourInARowBoardView(state: state, isInteractive: false, animatesLastMove: false)
-                .padding(18)
+        VStack(spacing: 0) {
+            ZStack {
+                LinearGradient(colors: [Color(white: 0.88), Color(white: 0.74)], startPoint: .top, endPoint: .bottom)
+                FourInARowBoardView(state: state, isInteractive: false, animatesLastMove: false)
+                    .padding(14)
+            }
+            BubbleStrip(text: caption)
         }
         .frame(width: 300, height: 225)
         .environment(\.seatPalette, palette)

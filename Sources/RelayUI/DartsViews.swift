@@ -1126,17 +1126,20 @@ public struct DartsBubbleArt: View {
     }
 
     public var body: some View {
-        ZStack {
-            WoodWall()
-            DartsBoardView(darts: lastVisitDarts, animatesDarts: false)
-                .frame(width: 196, height: 196)
-                .shadow(color: .black.opacity(0.5), radius: 6, y: 4)
-            if state.outcome.winner != nil {
-                Image(systemName: "trophy.fill")
-                    .font(.system(size: 78))
-                    .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.1))
-                    .shadow(color: .black.opacity(0.5), radius: 4, y: 3)
+        VStack(spacing: 0) {
+            ZStack {
+                WoodWall()
+                DartsBoardView(darts: lastVisitDarts, animatesDarts: false)
+                    .frame(width: 174, height: 174)
+                    .shadow(color: .black.opacity(0.5), radius: 6, y: 4)
+                if state.outcome.winner != nil {
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 70))
+                        .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.1))
+                        .shadow(color: .black.opacity(0.5), radius: 4, y: 3)
+                }
             }
+            BubbleStrip(text: state.outcome.isFinished ? "Game over" : state.visits.isEmpty ? "Let's play darts!" : "Your turn")
         }
         .frame(width: 300, height: 225)
         .clipped()
