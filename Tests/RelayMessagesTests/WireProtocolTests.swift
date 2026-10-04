@@ -50,6 +50,18 @@ struct WireProtocolTests {
         #expect(snapshot.match.header.coloursSwapped == false)
     }
 
+    @Test func longestDartsGameFitsTheSizeBudget() throws {
+        // Every visit three darts at the far edge of reach, all misses, for the longest preset.
+        let configuration = Darts.Configuration(startingScore: 301, rounds: 12)
+        let wide = Darts.Action(hits: Array(repeating: Darts.Hit(x: -3_999, y: -3_999), count: 3))
+        let header = MatchHeader(gameID: Darts.gameID, rulesVersion: Darts.rulesVersion)
+        let match = try Match<Darts>.replay(header: header, configuration: configuration, actions: Array(repeating: wide, count: 24))
+        #expect(match.outcome.isFinished)
+        let url = try MatchCodec.url(for: MatchSnapshot(match: match))
+        #expect(url.absoluteString.count < 5_000)
+        #expect(try GameDecoders.decode(url) == .darts(MatchSnapshot(match: match)))
+    }
+
     @Test func swappedColoursRoundTrip() throws {
         let header = MatchHeader(gameID: C4.gameID, rulesVersion: C4.rulesVersion, coloursSwapped: true)
         let match = try Match<C4>.replay(header: header, configuration: .standard, actions: [.init(column: 2)])

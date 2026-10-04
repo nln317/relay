@@ -36,7 +36,16 @@ public enum GameCatalog {
         symbolName: "circle.grid.3x3.fill"
     )
 
-    public static let playable: [GameDefinition] = [fourInARow]
+    public static let darts = GameDefinition(
+        id: Darts.gameID,
+        displayName: "Darts",
+        tagline: "Count down from 201. Hit zero exactly to win.",
+        category: .skill,
+        typicalMinutes: 3...8,
+        symbolName: "target"
+    )
+
+    public static let playable: [GameDefinition] = [fourInARow, darts]
 
     public static func definition(for id: GameID) -> GameDefinition? {
         playable.first { $0.id == id }

@@ -7,8 +7,10 @@ import RelayCore
 /// It separates four things that must never be confused (docs/GAME_PROTOCOL.md, "Draft recovery"):
 /// 1. the last official state: the highest turn known to be in the transcript,
 ///    either received from the opponent or seen being sent from this device;
-/// 2. the current local draft: a move chosen but not yet inserted. Four in a Row
-///    commits a move and inserts it in one step, so it has no draft to persist;
+/// 2. the current local draft: a move chosen but not yet inserted (`draft`). Four in a Row
+///    commits a move and inserts it in one step, so it has none. A Darts visit is built
+///    dart by dart and each throw is committed here the moment it is made, so closing
+///    the extension or deleting the staged message can never buy a re-throw;
 /// 3. a completed but unsent action: inserted into the compose field, not yet sent
 ///    (`pendingOutgoing`). Never treated as official;
 /// 4. the last locally known outgoing state: `official` with source `.sentFromThisDevice`.
@@ -35,11 +37,25 @@ public struct MatchLedger: Codable, Equatable, Sendable {
         }
     }
 
+    /// Part or all of this device's next action, committed before it is sent.
+    public struct Draft: Codable, Equatable, Sendable {
+        /// The official turn this draft continues from; stale once the match moves on.
+        public var turnNumber: Int
+        /// The game's own JSON encoding of the (possibly partial) action.
+        public var action: Data
+
+        public init(turnNumber: Int, action: Data) {
+            self.turnNumber = turnNumber
+            self.action = action
+        }
+    }
+
     public struct Entry: Codable, Equatable, Sendable {
         public var matchID: MatchID
         public var gameID: GameID
         public var official: StoredSnapshot?
         public var pendingOutgoing: StoredSnapshot?
+        public var draft: Draft?
         /// The seat this device plays in this match, once known.
         public var localSeat: Seat?
         /// The match this one is a rematch of, if any.

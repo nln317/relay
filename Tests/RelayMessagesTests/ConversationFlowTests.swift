@@ -455,3 +455,125 @@ struct AnalyticsPrivacyTests {
         }
     }
 }
+
+// MARK: - Darts
+
+private func dart(_ segment: DartsBoard.Segment) -> Darts.Hit { DartsBoard.target(for: segment) }
+private let t20 = dart(.init(ring: .treble, number: 20))
+private let s1 = dart(.init(ring: .single, number: 1))
+
+/// Throws darts one at a time until the visit completes, returning the message to send.
+private func throwVisit(_ hits: [Darts.Hit], on device: SimulatedDevice, in start: PlaySession) throws -> OutgoingMessage {
+    var current = start
+    for hit in hits {
+        switch try device.controller.throwDart(hit, in: current) {
+        case .thrown(let next): current = next
+        case .visitComplete(_, let outgoing): return outgoing
+        }
+    }
+    Issue.record("visit did not complete")
+    throw CancellationError()
+}
+
+@Suite("Darts over Messages")
+struct DartsConversationTests {
+    @Test func visitsTravelAndScoreOnBothDevices() throws {
+        let ava = SimulatedDevice(name: "ava"), ben = SimulatedDevice(name: "ben")
+        let chat = Conversation()
+        guard case .play(let fresh) = ava.controller.startMatch(game: Darts.gameID) else {
+            Issue.record("challenger throws first")
+            return
+        }
+        let first = try throwVisit([t20, t20, s1], on: ava, in: fresh)
+        #expect(first.caption.subcaption == "Your turn")
+        chat.insertAndSend(first, from: ava)
+
+        let benTurn = try session(chat.open(chat.last, on: ben))
+        #expect(benTurn.mode == .yourTurn)
+        #expect(benTurn.localSeat == .two)
+        guard case .darts(let seen) = benTurn.snapshot else { Issue.record("expected darts"); return }
+        #expect(seen.match.state.remaining(for: .one) == 80)
+        #expect(benTurn.dartsProgress?.darts.isEmpty == true)
+    }
+
+    @Test func committedDartsSurviveARelaunchAndCannotBeRethrown() throws {
+        let ava = SimulatedDevice(name: "ava")
+        guard case .play(let fresh) = ava.controller.startMatch(game: Darts.gameID) else { return }
+        guard case .thrown(let afterOne) = try ava.controller.throwDart(s1, in: fresh) else {
+            Issue.record("one dart should not end the visit")
+            return
+        }
+        #expect(afterOne.dartsProgress?.points == 1)
+
+        // The extension is killed; reopening the same turn shows the committed dart.
+        ava.relaunch()
+        let resumed = ava.controller.committedDraft(for: fresh.snapshot)
+        #expect(resumed == .darts(Darts.Action(hits: [s1])))
+
+        // Throwing again continues from the committed dart rather than starting over.
+        guard case .thrown(let afterTwo) = try ava.controller.throwDart(t20, in: fresh) else { return }
+        #expect(afterTwo.dartsProgress?.darts.count == 2)
+        #expect(afterTwo.dartsProgress?.points == 61)
+
+        // A different visit than the committed throws is refused.
+        #expect(throws: ControllerError.differsFromCommittedThrows) {
+            try ava.controller.prepareMove(.darts(Darts.Action(hits: [t20, t20, t20])), in: fresh)
+        }
+    }
+
+    @Test func deletingTheStagedVisitKeepsItForResending() throws {
+        let ava = SimulatedDevice(name: "ava"), ben = SimulatedDevice(name: "ben")
+        let chat = Conversation()
+        guard case .play(let fresh) = ava.controller.startMatch(game: Darts.gameID) else { return }
+        chat.insertAndSend(try throwVisit([s1, s1, s1], on: ava, in: fresh), from: ava)
+
+        let benTurn = try session(chat.open(chat.last, on: ben))
+        let staged = try throwVisit([t20, t20, t20], on: ben, in: benTurn)
+        ben.controller.didInsert(staged)
+        ben.controller.didCancelSending(url: staged.url)
+
+        // Reopening Ava's bubble: Ben's turn again, with his three darts still committed.
+        let again = try session(chat.open(chat.last, on: ben))
+        #expect(again.mode == .yourTurn)
+        #expect(again.draft == .darts(Darts.Action(hits: [t20, t20, t20])))
+        #expect(again.dartsProgress?.isComplete == true)
+        #expect(throws: ControllerError.visitAlreadyComplete) { try ben.controller.throwDart(s1, in: again) }
+        // The only thing he can send is the same visit.
+        let resent = try ben.controller.prepareMove(again.draft!, in: again)
+        #expect(resent.url == staged.url)
+    }
+
+    @Test func aStagedVisitCannotBeSwapped() throws {
+        let ava = SimulatedDevice(name: "ava")
+        guard case .play(let fresh) = ava.controller.startMatch(game: Darts.gameID) else { return }
+        let staged = try throwVisit([s1, s1, s1], on: ava, in: fresh)
+        ava.controller.didInsert(staged)
+        let reopened = try session(ava.controller.screen(for: OpenedMessage(url: staged.url, senderIsLocal: true, isPending: true)))
+        guard case .readyToSend = reopened.mode else { Issue.record("expected ready to send"); return }
+        #expect(!reopened.canMove)
+    }
+
+    @Test func checkoutEndsTheGameAndRematchKeepsTheVariant() throws {
+        let ava = SimulatedDevice(name: "ava"), ben = SimulatedDevice(name: "ben")
+        let chat = Conversation()
+        guard case .play(let fresh) = ava.controller.startMatch(game: Darts.gameID) else { return }
+        let miss = Darts.Hit(x: 0, y: 2_500)
+        // 201: Ava 180 → 21, Ben misses, Ava 1 + 20 = checkout.
+        chat.insertAndSend(try throwVisit([t20, t20, t20], on: ava, in: fresh), from: ava)
+        chat.insertAndSend(try throwVisit([miss, miss, miss], on: ben, in: try session(chat.open(chat.last, on: ben))), from: ben)
+        let finish = try throwVisit([s1, dart(.init(ring: .single, number: 20))], on: ava, in: try session(chat.open(chat.last, on: ava)))
+        #expect(finish.caption.subcaption == "Game over · checked out!")
+        chat.insertAndSend(finish, from: ava)
+
+        let benResult = try session(chat.open(chat.last, on: ben))
+        #expect(benResult.mode == .finished)
+        #expect(benResult.snapshot.outcome == .won(by: .one))
+        guard case .play(let rematch) = try ben.controller.startRematch(from: benResult) else {
+            Issue.record("the loser throws first in the rematch")
+            return
+        }
+        guard case .darts(let snapshot) = rematch.snapshot else { return }
+        #expect(snapshot.match.configuration == .standard)
+        #expect(snapshot.match.header.previousMatchID == benResult.snapshot.matchID)
+    }
+}

@@ -46,21 +46,34 @@ public struct PlaySession: Equatable, Sendable {
     public var isUnsentNewMatch: Bool
     /// A rematch of this match that this device already knows about.
     public var knownRematch: MatchID?
+    /// Throws already committed for this turn (skill games), possibly a whole visit that
+    /// still has to be put in the message box. Nil for board games.
+    public var draft: AnyAction?
 
-    public init(snapshot: AnyMatchSnapshot, localSeat: Seat, mode: Mode, notices: [Notice] = [], isUnsentNewMatch: Bool = false, knownRematch: MatchID? = nil) {
+    public init(snapshot: AnyMatchSnapshot, localSeat: Seat, mode: Mode, notices: [Notice] = [], isUnsentNewMatch: Bool = false, knownRematch: MatchID? = nil, draft: AnyAction? = nil) {
         self.snapshot = snapshot
         self.localSeat = localSeat
         self.mode = mode
         self.notices = notices
         self.isUnsentNewMatch = isUnsentNewMatch
         self.knownRematch = knownRematch
+        self.draft = draft
     }
 
     public var canMove: Bool {
         switch mode {
-        case .yourTurn, .readyToSend: snapshot.outcome.seatToAct == localSeat
+        case .yourTurn: snapshot.outcome.seatToAct == localSeat
+        case .readyToSend: snapshot.allowsChangingStagedMove && snapshot.outcome.seatToAct == localSeat
         case .waitingForOpponent, .finished: false
         }
+    }
+
+    /// The darts thrown so far this turn, scored against the official state.
+    public var dartsProgress: Darts.VisitProgress? {
+        guard case .darts(let snapshot) = snapshot else { return nil }
+        let hits: [Darts.Hit]
+        if case .darts(let visit)? = draft { hits = visit.hits } else { hits = [] }
+        return snapshot.match.state.progress(of: hits, by: localSeat)
     }
 }
 
@@ -89,6 +102,7 @@ public struct OutgoingMessage: Equatable, Sendable {
 /// A move in any supported game.
 public enum AnyAction: Equatable, Sendable {
     case fourInARow(FourInARow.Action)
+    case darts(Darts.Action)
 }
 
 public enum ControllerError: Error, Equatable, Sendable {
@@ -97,6 +111,10 @@ public enum ControllerError: Error, Equatable, Sendable {
     case illegalMove(String)
     case matchNotFinished
     case encoding(MatchCodec.EncodingError)
+    /// A skill-game action that differs from the throws already committed for this turn.
+    case differsFromCommittedThrows
+    /// No more darts can be thrown this turn.
+    case visitAlreadyComplete
 }
 
 /// Turns Messages lifecycle events into screens and outgoing messages, and keeps
@@ -228,6 +246,9 @@ public final class ConversationController {
                 }
                 if entry.localSeat == nil { entry.localSeat = localSeat }
                 entry.previousMatchID = display.header.previousMatchID
+                if let draft = entry.draft, draft.turnNumber < (entry.official?.turnNumber ?? 0) {
+                    entry.draft = nil
+                }
             }
         }
         if newOfficial != nil, display.outcome.isFinished, !previousOfficialFinished {
@@ -250,7 +271,8 @@ public final class ConversationController {
             localSeat: localSeat,
             mode: mode,
             notices: notices,
-            knownRematch: ledger.rematch(of: display.matchID)
+            knownRematch: ledger.rematch(of: display.matchID),
+            draft: mode == .yourTurn ? committedDraft(for: display) : nil
         )
     }
 
@@ -264,14 +286,19 @@ public final class ConversationController {
     }
 
     public func startMatch(game: GameID) -> NewMatch? {
-        guard game == FourInARow.gameID else { return nil }
+        let rulesVersion: RulesVersion
+        switch game {
+        case FourInARow.gameID: rulesVersion = FourInARow.rulesVersion
+        case Darts.gameID: rulesVersion = Darts.rulesVersion
+        default: return nil
+        }
         analytics.record(.gameSelected(game))
         let header = MatchHeader(
             gameID: game,
-            rulesVersion: FourInARow.rulesVersion,
+            rulesVersion: rulesVersion,
             firstSeat: Self.challengerMovesFirst ? .one : .two
         )
-        return makeNewMatch(header: header)
+        return makeNewMatch(header: header, like: nil)
     }
 
     public func startRematch(from session: PlaySession) throws(ControllerError) -> NewMatch {
@@ -280,17 +307,32 @@ public final class ConversationController {
         switch session.snapshot {
         case .fourInARow(let snapshot):
             header = snapshot.match.rematchHeader(initiator: session.localSeat)
+        case .darts(let snapshot):
+            header = snapshot.match.rematchHeader(initiator: session.localSeat)
         }
         analytics.record(.rematchStarted(header.gameID))
-        guard let result = makeNewMatch(header: header) else { throw .gameMismatch }
+        guard let result = makeNewMatch(header: header, like: session.snapshot) else { throw .gameMismatch }
         return result
     }
 
-    private func makeNewMatch(header: MatchHeader) -> NewMatch? {
-        guard header.gameID == FourInARow.gameID,
-              let match = try? Match<FourInARow>(header: header, configuration: .standard)
-        else { return nil }
-        let snapshot = AnyMatchSnapshot.fourInARow(MatchSnapshot(match: match))
+    /// A new match with `header`, using the configuration of `previous` (a rematch plays
+    /// the same variant) or the game's standard one.
+    private func makeNewMatch(header: MatchHeader, like previous: AnyMatchSnapshot?) -> NewMatch? {
+        let snapshot: AnyMatchSnapshot
+        switch header.gameID {
+        case FourInARow.gameID:
+            var configuration = FourInARow.Configuration.standard
+            if case .fourInARow(let old)? = previous { configuration = old.match.configuration }
+            guard let match = try? Match<FourInARow>(header: header, configuration: configuration) else { return nil }
+            snapshot = .fourInARow(MatchSnapshot(match: match))
+        case Darts.gameID:
+            var configuration = Darts.Configuration.standard
+            if case .darts(let old)? = previous { configuration = old.match.configuration }
+            guard let match = try? Match<Darts>(header: header, configuration: configuration) else { return nil }
+            snapshot = .darts(MatchSnapshot(match: match))
+        default:
+            return nil
+        }
         if header.firstSeat == .one {
             return .play(PlaySession(snapshot: snapshot, localSeat: .one, mode: .yourTurn, isUnsentNewMatch: true))
         }
@@ -303,6 +345,10 @@ public final class ConversationController {
     /// Choosing again while a move is ready to send replaces it (same MSSession).
     public func prepareMove(_ action: AnyAction, in session: PlaySession) throws(ControllerError) -> OutgoingMessage {
         guard session.canMove else { throw .notYourTurn }
+        if !session.snapshot.allowsChangingStagedMove,
+           let committed = committedDraft(for: session.snapshot), committed != action {
+            throw .differsFromCommittedThrows
+        }
         let next: AnyMatchSnapshot
         switch (session.snapshot, action) {
         case (.fourInARow(let snapshot), .fourInARow(let move)):
@@ -312,6 +358,15 @@ public final class ConversationController {
             } catch {
                 throw .illegalMove(String(describing: error))
             }
+        case (.darts(let snapshot), .darts(let visit)):
+            do {
+                let match = try snapshot.match.applying(visit, by: session.localSeat)
+                next = .darts(MatchSnapshot(match: match, loadouts: snapshot.loadouts))
+            } catch {
+                throw .illegalMove(String(describing: error))
+            }
+        default:
+            throw .gameMismatch
         }
         let url: URL
         do {
@@ -323,6 +378,64 @@ public final class ConversationController {
             analytics.record(.challengePrepared(next.gameID))
         }
         return OutgoingMessage(snapshot: next, url: url, localSeat: session.localSeat, caption: Self.caption(for: next))
+    }
+
+    // MARK: Skill games
+
+    public enum ThrowResult: Equatable, Sendable {
+        /// The dart is committed; the visit continues. Show this session.
+        case thrown(PlaySession)
+        /// The visit is over (third dart, checkout or bust): insert this message.
+        case visitComplete(PlaySession, OutgoingMessage)
+    }
+
+    /// Commits one dart before anything is shown about where it landed, so reopening the
+    /// extension or deleting the staged message cannot buy a second attempt.
+    public func throwDart(_ hit: Darts.Hit, in session: PlaySession) throws(ControllerError) -> ThrowResult {
+        guard case .yourTurn = session.mode, session.canMove,
+              case .darts(let snapshot) = session.snapshot
+        else { throw .notYourTurn }
+        var hits: [Darts.Hit] = []
+        if case .darts(let committed)? = committedDraft(for: session.snapshot) { hits = committed.hits }
+        guard !snapshot.match.state.progress(of: hits, by: session.localSeat).isComplete else {
+            throw .visitAlreadyComplete
+        }
+        hits.append(DartsAim.clamp(hit))
+        let visit = AnyAction.darts(Darts.Action(hits: hits))
+        commitDraft(visit, for: session.snapshot)
+        var updated = session
+        updated.draft = visit
+        guard snapshot.match.state.progress(of: hits, by: session.localSeat).isComplete else {
+            return .thrown(updated)
+        }
+        return .visitComplete(updated, try prepareMove(visit, in: updated))
+    }
+
+    private func commitDraft(_ action: AnyAction, for snapshot: AnyMatchSnapshot) {
+        let data: Data?
+        switch action {
+        case .fourInARow(let move): data = try? JSONEncoder().encode(move)
+        case .darts(let visit): data = try? JSONEncoder().encode(visit)
+        }
+        guard let data else { return }
+        persist { ledger in
+            ledger.update(snapshot.matchID, gameID: snapshot.gameID, now: now()) { entry in
+                entry.draft = .init(turnNumber: snapshot.turnNumber, action: data)
+            }
+        }
+    }
+
+    /// The committed draft for the turn after `snapshot`, if any.
+    func committedDraft(for snapshot: AnyMatchSnapshot) -> AnyAction? {
+        guard let draft = ledger.entry(for: snapshot.matchID)?.draft,
+              draft.turnNumber == snapshot.turnNumber
+        else { return nil }
+        switch snapshot {
+        case .fourInARow:
+            return (try? JSONDecoder().decode(FourInARow.Action.self, from: draft.action)).map(AnyAction.fourInARow)
+        case .darts:
+            return (try? JSONDecoder().decode(Darts.Action.self, from: draft.action)).map(AnyAction.darts)
+        }
     }
 
     // MARK: Messages lifecycle
@@ -359,6 +472,9 @@ public final class ConversationController {
                 if let pending = entry.pendingOutgoing, pending.turnNumber <= snapshot.turnNumber {
                     entry.pendingOutgoing = nil
                 }
+                if let draft = entry.draft, draft.turnNumber < snapshot.turnNumber {
+                    entry.draft = nil
+                }
                 entry.localSeat = localSeat
             }
         }
@@ -388,7 +504,7 @@ public final class ConversationController {
         let summary: String
         switch snapshot.outcome {
         case .won:
-            subcaption = "Game over · four in a row!"
+            subcaption = "Game over · \(winningLine(for: snapshot))"
             summary = "Won a game of \(gameName)"
         case .draw:
             subcaption = "Game over · it's a draw"
@@ -405,6 +521,15 @@ public final class ConversationController {
             summaryText: summary,
             accessibilityLabel: "\(gameName). \(subcaption)."
         )
+    }
+
+    private static func winningLine(for snapshot: AnyMatchSnapshot) -> String {
+        switch snapshot {
+        case .fourInARow:
+            return "four in a row!"
+        case .darts(let darts):
+            return darts.match.state.lastVisit?.result == .finished ? "checked out!" : "fewest points left"
+        }
     }
 
     // MARK: Helpers
