@@ -695,6 +695,8 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                 // changes) so nothing moves.
                 ThrowingDart(flights: palette.colour(thrower ?? .one))
                     .frame(width: layout.handSize.width, height: layout.handSize.height)
+                    // Leans along the swipe while held, so you can see where it will go.
+                    .rotationEffect(.degrees(heldLean), anchor: .bottom)
                     .position(x: layout.restingTip.x + hold.width, y: layout.restingTip.y + hold.height + layout.handSize.height / 2)
                 .opacity(showsHandDart ? 1 : 0)
                 .allowsHitTesting(false)
@@ -734,6 +736,14 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
         } message: {
             Text("Swipe the dart up at the board. Flick harder to throw higher; the line of your swipe aims left and right. Each turn is three darts. Count down from \(state.configuration.startingScore) and hit exactly zero to win. Going below zero is a bust and the turn scores nothing.")
         }
+    }
+
+    /// Degrees the held dart leans: the swipe's direction so far (sideways drift is held
+    /// at `sideFollow`, so it is scaled back up), up to 20 either way.
+    private var heldLean: Double {
+        guard holding, hold.height < -8 else { return 0 }
+        let degrees = atan2(Double(hold.width) / DartsAim.sideFollow, Double(-hold.height)) * 180 / .pi
+        return min(max(degrees, -20), 20)
     }
 
     private var showsHandDart: Bool { canThrow && dartInHand && thrower != nil }
@@ -871,7 +881,8 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                 // Only a swipe that starts low on the board or below it picks up the dart.
                 guard showsHandDart, launchTip == nil, value.startLocation.y > layout.mapping.centre.y + layout.diameter * 0.3 else { return }
                 holding = true
-                hold = value.translation
+                // The dart rises with the finger but drifts sideways only part as far.
+                hold = CGSize(width: value.translation.width * DartsAim.sideFollow, height: value.translation.height)
             }
             .onEnded { value in
                 guard showsHandDart, launchTip == nil, holding else { return }
@@ -880,7 +891,8 @@ public struct DartsTable<MenuItems: View, Footer: View>: View {
                 let target = DartsAim.flickTarget(
                     start: layout.unit(value.startLocation),
                     release: layout.unit(value.location),
-                    velocity: (Double(value.velocity.width) / diameter, Double(value.velocity.height) / diameter)
+                    velocity: (Double(value.velocity.width) / diameter, Double(value.velocity.height) / diameter),
+                    dartX: 0.5
                 )
                 guard let target else {
                     withAnimation(.spring(duration: 0.3, bounce: 0.35)) { hold = .zero }

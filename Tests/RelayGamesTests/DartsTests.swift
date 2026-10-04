@@ -202,9 +202,21 @@ struct DartsBotTests {
         // Each extra bit of force adds less height than the last.
         let harder = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0, -7.9)))
         #expect(firm.y - hard.y > hard.y - harder.y)
-        // A flick angled left lands left; releasing off-centre lands off-centre.
-        let left = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (-0.7, -3.0)))
-        #expect(left.x < 0.45)
+        // A swipe angled left lands left; releasing off-centre lands off-centre.
+        let left = try #require(DartsAim.flickTarget(start: (0.6, 1.3), release: release, velocity: (-0.35, -3.0)))
+        #expect(left.x < 0.42)
+        // A straight swipe that hooks a little as the thumb lets go still flies straight.
+        let hooked = try #require(DartsAim.flickTarget(start: start, release: release, velocity: (0.5, -3.0)))
+        #expect(abs(hooked.x - 0.5) < 0.001)
+        // A slightly crooked swipe (under about 3 degrees) also flies straight.
+        let crooked = try #require(DartsAim.flickTarget(start: (0.51, 1.3), release: release, velocity: (0, -3.0)))
+        #expect(abs(crooked.x - 0.5) < 0.001)
+        // A short flick, with no line to read, aims by its velocity.
+        let short = try #require(DartsAim.flickTarget(start: (0.5, 1.03), release: release, velocity: (-0.9, -3.0)))
+        #expect(short.x < 0.45)
+        // Held dart: where the finger touched it does not matter, and drift only half counts.
+        let touchedEdge = try #require(DartsAim.flickTarget(start: (0.56, 1.3), release: (0.56, 1.0), velocity: (0, -3.0), dartX: 0.5))
+        #expect(abs(touchedEdge.x - 0.5) < 0.001)
         let offCentre = try #require(DartsAim.flickTarget(start: (0.7, 1.3), release: (0.7, 1.0), velocity: (0, -3.0)))
         #expect(abs(offCentre.x - 0.7) < 0.001)
         // A tap, a downward drag, or stopping before letting go is not a throw.

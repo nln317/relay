@@ -140,7 +140,10 @@ swap a staged move (`allowsChangingStagedMove`), unlike Four in a Row (D-020).
 feedback; it first used drag-to-aim with a drifting sight). The player swipes the dart up:
 release speed sets how high it flies along a square-root curve (a soft flick drops low,
 about 3 board widths a second reaches the bull (made heavier again on 2026-10-04), and extra force adds less and less
-height so hard flicks do not overshoot easily), the line of the flick sets left and right,
+height so hard flicks do not overshoot easily), the line of the whole swipe sets left and right (mostly start to release, a fifth
+release velocity, with leans under about 3 degrees flying straight, because reading only
+the release made a thumb's natural hook throw crooked; the dart follows only half the
+finger's sideways drift and leans along the swipe while held; Nathan, 2026-10-04),
 and a small scatter is added, more for a wild flick. Measured in board widths so every
 screen size feels the same. The landing point is committed when the dart leaves the hand;
 the flight is animation only. The board hangs on a wall, so an over-hit or sliced

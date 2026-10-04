@@ -16,17 +16,52 @@ public enum DartsAim {
     ///   - start: where the swipe began.
     ///   - release: where the finger let go.
     ///   - velocity: release velocity in board widths per second.
-    public static func flickTarget(start: (x: Double, y: Double), release: (x: Double, y: Double), velocity: (x: Double, y: Double)) -> (x: Double, y: Double)? {
+    ///   - dartX: where the dart rests across the screen, when it is held there rather
+    ///     than under the finger: the throw then starts from the dart, carried sideways by
+    ///     only part of the finger's drift (`sideFollow`), not from wherever the finger
+    ///     happened to touch it.
+    public static func flickTarget(start: (x: Double, y: Double), release: (x: Double, y: Double), velocity: (x: Double, y: Double), dartX: Double? = nil) -> (x: Double, y: Double)? {
         let upwardSpeed = -velocity.y
         guard upwardSpeed >= minimumThrowSpeed, start.y > release.y else { return nil }
         // Height grows with the square root of speed: a moderate flick reaches the bull,
         // and each extra bit of force adds less, so hard flicks do not shoot over the top.
         let height = lowestReach - reachScale * upwardSpeed.squareRoot()
-        // Follow the line of the flick up to that height. A near-flat flick would run off
+        // Follow the line of the swipe up to that height. A near-flat swipe would run off
         // to infinity, so the slope is capped (the rules clamp anything off the board).
-        let slope = min(max(velocity.x / upwardSpeed, -1.5), 1.5)
-        return (release.x + slope * max(0, release.y - height), height)
+        let slope = min(max(aimSlope(start: start, release: release, velocity: velocity), -1.5), 1.5)
+        let origin = dartX.map { $0 + sideFollow * (release.x - start.x) } ?? release.x
+        return (origin + slope * max(0, release.y - height), height)
     }
+
+    /// How much of the finger's sideways drift moves the held dart.
+    public static let sideFollow = 0.5
+
+    /// Sideways drift per unit of height, read mostly from the whole swipe (where the
+    /// finger started to where it let go) rather than the last instant of it: a thumb
+    /// naturally hooks a little as it lets go, and reading only the release velocity
+    /// turned that hook into darts that never went straight. A tiny lean is treated as
+    /// straight, and anything larger loses that same small amount, so it stays smooth.
+    static func aimSlope(start: (x: Double, y: Double), release: (x: Double, y: Double), velocity: (x: Double, y: Double)) -> Double {
+        let releaseSlope = velocity.x / -velocity.y
+        let rise = start.y - release.y
+        let raw: Double
+        if rise >= minimumAimRise {
+            let swipeSlope = (release.x - start.x) / rise
+            raw = swipeSlope * (1 - releaseWeight) + releaseSlope * releaseWeight
+        } else {
+            // A short flick has no line of its own to read; its velocity is all there is.
+            raw = releaseSlope
+        }
+        let lean = max(0, abs(raw) - straightTolerance)
+        return raw < 0 ? -lean : lean
+    }
+
+    /// How much the release velocity counts towards the aim, against the whole swipe's line.
+    static let releaseWeight = 0.2
+    /// Swipes shorter than this (board widths) aim by release velocity alone.
+    static let minimumAimRise = 0.06
+    /// A lean this small (about 3 degrees) still flies straight.
+    static let straightTolerance = 0.05
 
     /// Slower than this (board widths per second) and the dart is not thrown. The softest
     /// throws fall short of the board, so a feeble flick misses low.
