@@ -138,11 +138,14 @@ swap a staged move (`allowsChangingStagedMove`), unlike Four in a Row (D-020).
 
 **D-029 Throw by flicking a dart held below the board** (revised 2026-10-04 after device
 feedback; it first used drag-to-aim with a drifting sight). The player swipes the dart up:
-release speed sets how high it flies (a soft flick drops low, about 3.7 board widths a
+release speed sets how high it flies (a soft flick drops low, about 2.8 board widths a
 second reaches the bull, harder goes higher), the line of the flick sets left and right,
 and a small scatter is added, more for a wild flick. Measured in board widths so every
 screen size feels the same. The landing point is committed when the dart leaves the hand;
-the flight is animation only. VoiceOver keeps "Throw at treble 20"-style actions. Constants
+the flight is animation only. The board hangs on a wall, so an over-hit or sliced
+throw visibly misses and sticks in the wall. Every dart (the bot's and an arriving
+opponent visit too) flies in on a shallow arc, shrinking with distance, and stays stuck
+in the board until the next visit; the scores and visit strip update as it lands. VoiceOver keeps "Throw at treble 20"-style actions. Constants
 live in `DartsAim` and are expected to be tuned after more play.
 
 **D-030 Our own dartboard look.** Standard number order and ring proportions (generic

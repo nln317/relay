@@ -144,6 +144,7 @@ struct DartsPracticeView: View {
             )
             DartsThrowView(
                 darts: boardDarts,
+                seat: toAct ?? .one,
                 canThrow: model.humanCanThrow,
                 suggestedTarget: suggestedTarget,
                 onThrow: { model.throwDart($0) }

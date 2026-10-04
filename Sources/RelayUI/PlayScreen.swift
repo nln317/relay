@@ -234,6 +234,7 @@ struct DartsPlayContent: View {
             }
             DartsThrowView(
                 darts: boardDarts,
+                seat: session.localSeat,
                 canThrow: canThrow,
                 suggestedTarget: DartsBot(difficulty: .sharp).target(remaining: livePreview?.remaining ?? match.state.remaining(for: session.localSeat)),
                 onThrow: { onInput(.dart($0)) }

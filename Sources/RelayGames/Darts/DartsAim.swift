@@ -31,13 +31,13 @@ public enum DartsAim {
     /// Height reached by the softest throw: a little below the board, so it misses.
     public static let lowestReach = 1.05
     /// How much higher each extra board width per second of flick carries the dart.
-    /// About 3.7 widths a second (a firm flick) reaches the bull.
-    public static let reachPerSpeed = 0.15
+    /// About 2.8 widths a second (a firm flick) reaches the bull and about 4 the treble 20.
+    public static let reachPerSpeed = 0.2
 
     /// Scatter grows when the flick is wild (much harder than the top of the board
     /// needs), in tenths of a millimetre.
     public static func scatter(forSpeed speed: Double) -> Double {
-        releaseScatter + 30 * max(0, speed - 7)
+        releaseScatter + 30 * max(0, speed - 5.5)
     }
 
     /// Release scatter added to every throw, standard deviation in tenths of a millimetre.
