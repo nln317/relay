@@ -578,3 +578,118 @@ struct DartsConversationTests {
         #expect(snapshot.match.header.previousMatchID == benResult.snapshot.matchID)
     }
 }
+
+// MARK: - 8-Ball
+
+/// Plays the rest of a turn with the bot's shots, one committed shot at a time, returning
+/// the message to send.
+private func playTurn(on device: SimulatedDevice, in start: PlaySession, rng: inout SplitMix) throws -> OutgoingMessage {
+    var current = start
+    let bot = EightBallBot(difficulty: .standard)
+    for _ in 0..<EightBall.maximumShotsPerTurn {
+        let progress = try #require(current.eightBallProgress)
+        guard case .eightBall(let snapshot) = current.snapshot else { throw CancellationError() }
+        let shot = bot.chooseShot(
+            positions: progress.positions,
+            groups: progress.groups,
+            ballInHand: progress.ballInHand,
+            isBreak: snapshot.match.state.isBreak && progress.results.isEmpty,
+            seat: current.localSeat,
+            using: &rng
+        )
+        switch try device.controller.takeShot(shot, in: current) {
+        case .thrown(let next): current = next
+        case .visitComplete(_, let outgoing): return outgoing
+        }
+    }
+    Issue.record("turn did not end")
+    throw CancellationError()
+}
+
+struct SplitMix: RandomNumberGenerator {
+    var state: UInt64
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+}
+
+@Suite("8-Ball over Messages")
+struct EightBallConversationTests {
+    @Test func turnsTravelAndReplayToTheSameTable() throws {
+        var rng = SplitMix(state: 3)
+        let ava = SimulatedDevice(name: "ava"), ben = SimulatedDevice(name: "ben")
+        let chat = Conversation()
+        guard case .play(let fresh) = ava.controller.startMatch(game: EightBall.gameID) else {
+            Issue.record("challenger breaks first")
+            return
+        }
+        #expect(fresh.eightBallProgress?.ballInHand == .behindHeadString)
+        let first = try playTurn(on: ava, in: fresh, rng: &rng)
+        #expect(first.caption.subcaption == "Your turn")
+        chat.insertAndSend(first, from: ava)
+
+        let benTurn = try session(chat.open(chat.last, on: ben))
+        #expect(benTurn.mode == .yourTurn)
+        #expect(benTurn.localSeat == .two)
+        guard case .eightBall(let seen) = benTurn.snapshot, case .eightBall(let sent) = first.snapshot else {
+            Issue.record("expected 8-Ball")
+            return
+        }
+        #expect(seen.match.state == sent.match.state)
+        #expect(benTurn.eightBallProgress?.results.isEmpty == true)
+
+        // Ben's turn travels back the same way.
+        let second = try playTurn(on: ben, in: benTurn, rng: &rng)
+        chat.insertAndSend(second, from: ben)
+        let avaAgain = try session(chat.open(chat.last, on: ava))
+        #expect(avaAgain.snapshot.turnNumber == 2)
+    }
+
+    @Test func aFinishedTurnCannotBeReshot() throws {
+        var rng = SplitMix(state: 5)
+        let ava = SimulatedDevice(name: "ava"), ben = SimulatedDevice(name: "ben")
+        let chat = Conversation()
+        guard case .play(let fresh) = ava.controller.startMatch(game: EightBall.gameID) else { return }
+        chat.insertAndSend(try playTurn(on: ava, in: fresh, rng: &rng), from: ava)
+
+        let benTurn = try session(chat.open(chat.last, on: ben))
+        let staged = try playTurn(on: ben, in: benTurn, rng: &rng)
+        ben.controller.didInsert(staged)
+        ben.controller.didCancelSending(url: staged.url)
+        ben.relaunch()
+
+        let again = try session(chat.open(chat.last, on: ben))
+        #expect(again.mode == .yourTurn)
+        #expect(again.eightBallProgress?.isComplete == true)
+        let anyShot = EightBall.Shot(dx: 0, dy: -4_096, power: 500)
+        #expect(throws: ControllerError.visitAlreadyComplete) { try ben.controller.takeShot(anyShot, in: again) }
+        #expect(try ben.controller.prepareMove(again.draft!, in: again).url == staged.url)
+    }
+
+    @Test func aBadPlacementIsRefusedBeforeAnythingIsCommitted() throws {
+        let ava = SimulatedDevice(name: "ava")
+        guard case .play(let fresh) = ava.controller.startMatch(game: EightBall.gameID) else { return }
+        // On the break the cue ball must go behind the head string.
+        let upTheTable = EightBall.Shot(dx: 0, dy: -4_096, power: 900, placement: .init(x: 640, y: 1_000))
+        #expect(throws: ControllerError.illegalShot("badPlacement")) { try ava.controller.takeShot(upTheTable, in: fresh) }
+        #expect(ava.controller.committedDraft(for: fresh.snapshot) == nil)
+    }
+
+    @Test func aWholeGameFitsInOneMessage() throws {
+        var rng = SplitMix(state: 11)
+        let bot = EightBallBot(difficulty: .casual)
+        let header = MatchHeader(gameID: EightBall.gameID, rulesVersion: EightBall.rulesVersion)
+        var match = try Match<EightBall>(header: header, configuration: .standard)
+        while let seat = match.outcome.seatToAct, match.turnNumber < 120 {
+            match = try match.applying(try #require(bot.takeTurn(in: match.state, using: &rng)), by: seat)
+        }
+        #expect(match.outcome.isFinished)
+        let url = try MatchCodec.url(for: MatchSnapshot(match: match))
+        let decoded = try MatchCodec.decode(url, as: EightBall.self)
+        #expect(decoded.match.state == match.state)
+    }
+}

@@ -75,6 +75,14 @@ public struct PlaySession: Equatable, Sendable {
         if case .darts(let visit)? = draft { hits = visit.hits } else { hits = [] }
         return snapshot.match.state.progress(of: hits, by: localSeat)
     }
+
+    /// The shots taken so far this turn, played out on the official table.
+    public var eightBallProgress: EightBall.TurnProgress? {
+        guard case .eightBall(let snapshot) = snapshot else { return nil }
+        let shots: [EightBall.Shot]
+        if case .eightBall(let turn)? = draft { shots = turn.shots } else { shots = [] }
+        return snapshot.match.state.progress(of: shots, by: localSeat)
+    }
 }
 
 public enum ConversationScreen: Equatable, Sendable {
@@ -103,6 +111,7 @@ public struct OutgoingMessage: Equatable, Sendable {
 public enum AnyAction: Equatable, Sendable {
     case fourInARow(FourInARow.Action)
     case darts(Darts.Action)
+    case eightBall(EightBall.Action)
 }
 
 public enum ControllerError: Error, Equatable, Sendable {
@@ -113,8 +122,10 @@ public enum ControllerError: Error, Equatable, Sendable {
     case encoding(MatchCodec.EncodingError)
     /// A skill-game action that differs from the throws already committed for this turn.
     case differsFromCommittedThrows
-    /// No more darts can be thrown this turn.
+    /// No more darts can be thrown (or shots taken) this turn.
     case visitAlreadyComplete
+    /// A shot the rules refuse before it is played (bad numbers or cue ball placement).
+    case illegalShot(String)
 }
 
 /// Turns Messages lifecycle events into screens and outgoing messages, and keeps
@@ -290,6 +301,7 @@ public final class ConversationController {
         switch game {
         case FourInARow.gameID: rulesVersion = FourInARow.rulesVersion
         case Darts.gameID: rulesVersion = Darts.rulesVersion
+        case EightBall.gameID: rulesVersion = EightBall.rulesVersion
         default: return nil
         }
         analytics.record(.gameSelected(game))
@@ -308,6 +320,8 @@ public final class ConversationController {
         case .fourInARow(let snapshot):
             header = snapshot.match.rematchHeader(initiator: session.localSeat)
         case .darts(let snapshot):
+            header = snapshot.match.rematchHeader(initiator: session.localSeat)
+        case .eightBall(let snapshot):
             header = snapshot.match.rematchHeader(initiator: session.localSeat)
         }
         analytics.record(.rematchStarted(header.gameID))
@@ -330,6 +344,11 @@ public final class ConversationController {
             if case .darts(let old)? = previous { configuration = old.match.configuration }
             guard let match = try? Match<Darts>(header: header, configuration: configuration) else { return nil }
             snapshot = .darts(MatchSnapshot(match: match))
+        case EightBall.gameID:
+            var configuration = EightBall.Configuration.standard
+            if case .eightBall(let old)? = previous { configuration = old.match.configuration }
+            guard let match = try? Match<EightBall>(header: header, configuration: configuration) else { return nil }
+            snapshot = .eightBall(MatchSnapshot(match: match))
         default:
             return nil
         }
@@ -362,6 +381,13 @@ public final class ConversationController {
             do {
                 let match = try snapshot.match.applying(visit, by: session.localSeat)
                 next = .darts(MatchSnapshot(match: match, loadouts: snapshot.loadouts))
+            } catch {
+                throw .illegalMove(String(describing: error))
+            }
+        case (.eightBall(let snapshot), .eightBall(let turn)):
+            do {
+                let match = try snapshot.match.applying(turn, by: session.localSeat)
+                next = .eightBall(MatchSnapshot(match: match, loadouts: snapshot.loadouts))
             } catch {
                 throw .illegalMove(String(describing: error))
             }
@@ -411,11 +437,37 @@ public final class ConversationController {
         return .visitComplete(updated, try prepareMove(visit, in: updated))
     }
 
+    /// Commits one 8-Ball shot before its result is shown, like `throwDart`: the shot is
+    /// on record before the balls move, so nothing can be undone by reopening Relay.
+    public func takeShot(_ shot: EightBall.Shot, in session: PlaySession) throws(ControllerError) -> ThrowResult {
+        guard case .yourTurn = session.mode, session.canMove,
+              case .eightBall(let snapshot) = session.snapshot
+        else { throw .notYourTurn }
+        var shots: [EightBall.Shot] = []
+        if case .eightBall(let committed)? = committedDraft(for: session.snapshot) { shots = committed.shots }
+        let state = snapshot.match.state
+        let before = state.progress(of: shots, by: session.localSeat)
+        guard !before.isComplete else { throw .visitAlreadyComplete }
+        if let violation = EightBall.validate(shot, ballInHand: before.ballInHand, positions: before.positions) {
+            throw .illegalShot(String(describing: violation))
+        }
+        shots.append(shot)
+        let turn = AnyAction.eightBall(EightBall.Action(shots: shots))
+        commitDraft(turn, for: session.snapshot)
+        var updated = session
+        updated.draft = turn
+        guard state.progress(of: shots, by: session.localSeat).isComplete else {
+            return .thrown(updated)
+        }
+        return .visitComplete(updated, try prepareMove(turn, in: updated))
+    }
+
     private func commitDraft(_ action: AnyAction, for snapshot: AnyMatchSnapshot) {
         let data: Data?
         switch action {
         case .fourInARow(let move): data = try? JSONEncoder().encode(move)
         case .darts(let visit): data = try? JSONEncoder().encode(visit)
+        case .eightBall(let turn): data = try? JSONEncoder().encode(turn)
         }
         guard let data else { return }
         persist { ledger in
@@ -435,6 +487,8 @@ public final class ConversationController {
             return (try? JSONDecoder().decode(FourInARow.Action.self, from: draft.action)).map(AnyAction.fourInARow)
         case .darts:
             return (try? JSONDecoder().decode(Darts.Action.self, from: draft.action)).map(AnyAction.darts)
+        case .eightBall:
+            return (try? JSONDecoder().decode(EightBall.Action.self, from: draft.action)).map(AnyAction.eightBall)
         }
     }
 
@@ -529,6 +583,8 @@ public final class ConversationController {
             return "four in a row!"
         case .darts(let darts):
             return darts.match.state.lastVisit?.result == .finished ? "checked out!" : "fewest points left"
+        case .eightBall(let pool):
+            return pool.match.state.lastTurn?.shots.last?.ending == .won ? "sank the 8!" : "8-ball foul"
         }
     }
 

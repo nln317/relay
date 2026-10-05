@@ -45,7 +45,16 @@ public enum GameCatalog {
         symbolName: "target"
     )
 
-    public static let playable: [GameDefinition] = [fourInARow, darts]
+    public static let eightBall = GameDefinition(
+        id: EightBall.gameID,
+        displayName: "8 Ball",
+        tagline: "Sink your group, then the 8.",
+        category: .skill,
+        typicalMinutes: 5...15,
+        symbolName: "8.circle.fill"
+    )
+
+    public static let playable: [GameDefinition] = [eightBall, fourInARow, darts]
 
     public static func definition(for id: GameID) -> GameDefinition? {
         playable.first { $0.id == id }
