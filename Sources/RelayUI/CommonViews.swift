@@ -48,6 +48,8 @@ struct GameTile: View {
                     .fill(RelayTheme.board)
                 if game.id == Darts.gameID {
                     DartsBoardView(darts: [], animatesDarts: false).padding(5)
+                } else if game.id == EightBall.gameID {
+                    BallToken(number: 8).padding(12)
                 } else {
                     HStack(spacing: 3) {
                         DiscView(seat: .one).frame(width: 18, height: 18)

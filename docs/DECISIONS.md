@@ -176,3 +176,19 @@ disc each, "You" on the left), a glossy blue board with a lip, moulded red and y
 discs, help bottom left and a settings menu bottom right, with the same banners.
 Message bubble pictures carry a dark strip in white capitals ("LET'S PLAY DARTS!", "YOUR
 TURN", "GAME OVER"), and the compact drawer shows that picture with a yellow PLAY button.
+
+**D-032 8-Ball: deterministic physics, shots on the wire** (2026-10-05). A turn is a list
+of shots, each a handful of integers (direction, power 1-1000, spin, and the cue ball's
+placement in millimetres when it was in hand). Every device re-runs each shot through the
+same physics (`PoolTable.simulate`), which uses only + - × ÷ and square root on Double at a
+fixed 960 steps a second, so the result is bit-identical everywhere (a golden test pins the
+break). Nothing about where balls ended up is sent, so a message can't be edited to move
+balls, and a whole game fits in one message. Like Darts, each shot is committed to the
+ledger before the balls move, so reopening Relay can't buy a re-shot. Standard 8-ball
+rules: break from behind the head string, table open until a ball of a group is legally
+potted, fouls (scratch, no ball hit, wrong ball first) give ball in hand anywhere, potting
+the 8 before your group is cleared or with a foul loses. The table follows the classic
+iMessage pool layout (D-031): players and groups along the top, a tall table, power bar on
+the left pulled down and released to shoot, a ridged fine-aim wheel on the right, a spin
+ball, an aim guide with the object ball's path, and the other player's shots replayed on
+opening. All drawing is our own.

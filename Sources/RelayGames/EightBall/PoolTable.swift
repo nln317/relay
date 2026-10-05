@@ -36,10 +36,10 @@ public enum PoolTable {
         }
 
         public static let zero = Vector(x: 0, y: 0)
-        static func + (a: Vector, b: Vector) -> Vector { Vector(x: a.x + b.x, y: a.y + b.y) }
-        static func - (a: Vector, b: Vector) -> Vector { Vector(x: a.x - b.x, y: a.y - b.y) }
-        static func * (a: Vector, k: Double) -> Vector { Vector(x: a.x * k, y: a.y * k) }
-        func dot(_ b: Vector) -> Double { x * b.x + y * b.y }
+        public static func + (a: Vector, b: Vector) -> Vector { Vector(x: a.x + b.x, y: a.y + b.y) }
+        public static func - (a: Vector, b: Vector) -> Vector { Vector(x: a.x - b.x, y: a.y - b.y) }
+        public static func * (a: Vector, k: Double) -> Vector { Vector(x: a.x * k, y: a.y * k) }
+        public func dot(_ b: Vector) -> Double { x * b.x + y * b.y }
         public var length: Double { (x * x + y * y).squareRoot() }
         var lengthSquared: Double { x * x + y * y }
         /// To the right of this direction on screen (y grows downwards).

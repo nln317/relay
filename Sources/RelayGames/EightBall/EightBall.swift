@@ -198,6 +198,8 @@ public enum EightBall: GameRules {
         }
 
         public var shot: Shot
+        /// The table as the shot was struck (cue ball already placed), for replaying it.
+        public var startPositions: [PoolTable.Vector?]
         public var pocketed: [Int]
         public var firstContact: Int?
         public var foul: Foul?
@@ -331,7 +333,7 @@ public enum EightBall: GameRules {
             } else {
                 let won = clearedBefore && foul == nil
                 if scratched { positions[0] = nil }
-                return ShotResult(shot: shot, pocketed: pocketed, firstContact: simulated.firstContact, foul: foul, assignedGroup: nil, ending: won ? .won : .lost)
+                return ShotResult(shot: shot, startPositions: before, pocketed: pocketed, firstContact: simulated.firstContact, foul: foul, assignedGroup: nil, ending: won ? .won : .lost)
             }
         }
 
@@ -362,7 +364,21 @@ public enum EightBall: GameRules {
             }
             ending = pottedOwn ? .continues : .turnOver
         }
-        return ShotResult(shot: shot, pocketed: pocketed, firstContact: simulated.firstContact, foul: foul, assignedGroup: assigned, ending: ending)
+        return ShotResult(shot: shot, startPositions: before, pocketed: pocketed, firstContact: simulated.firstContact, foul: foul, assignedGroup: assigned, ending: ending)
+    }
+
+    /// Plays `shot` from `positions` with every frame recorded, for showing it. The same
+    /// simulation the rules use, so the picture always matches the result.
+    public static func animation(of shot: Shot, from positions: [PoolTable.Vector?]) -> PoolTable.ShotOutcome {
+        var start = positions
+        if let placement = shot.placement { start[0] = placement.vector }
+        return PoolTable.simulate(
+            positions: start,
+            velocity: shot.velocity,
+            follow: Double(shot.spinY) / Double(maximumSpin),
+            side: Double(shot.spinX) / Double(maximumSpin),
+            recordFrames: true
+        )
     }
 
     /// The point nearest `spot` (moving up the table, then down) where a ball fits.

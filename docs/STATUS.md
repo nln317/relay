@@ -1,6 +1,6 @@
 # Status
 
-Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
+Last updated 2026-10-05. Repo: private `nln317/relay`, branch `main`.
 
 ## Milestones
 
@@ -9,6 +9,7 @@ Last updated 2026-10-04. Repo: private `nln317/relay`, branch `main`.
 | M0 Research + platform | **PASS** | Benchmark and docs written; app + Messages extension compile in Xcode 26.6 with zero warnings; package tests pass on Linux and macOS. |
 | M1 Four in a Row parity | **PARTIAL** | Full loop implemented and covered by automated tests. On the owner's iPhone: app runs, drop animation and practice verified by the owner. Sender side verified in Messages in the iOS 26.5 simulator. Receiver side, win, rematch chain, older-turn notice and problem screens verified in the simulator through the two-phone rehearsal (same logic and views, no Messages framework). Physical-device and two-device Messages play need a signing team and a second iPhone and account, so they are untested. |
 | M2 Darts | **PASS (owner-accepted feel), PARTIAL evidence** | Owner go-ahead 2026-10-04. Rules, integer scoring, bot, committed throws and Messages flow covered by automated tests (108 total). GamePigeon-style table (D-031) tuned on the owner's iPhone over many rounds; on 2026-10-04 23:34 the owner called the throw feel "decent enough" and closed the game. Not yet: two-device play, cosmetics hooks, sound. |
+| M3 8-Ball | **IN PROGRESS** | Owner go-ahead 2026-10-05 ("continue adding all the games"). Physics, rules, bots and Messages turns covered by automated tests (128 total on Linux). GamePigeon-style table, power bar, fine aim, spin and practice written; not yet compiled for iOS or tried in the simulator or on a phone. |
 
 ## Evidence (kept separate, brief §36)
 

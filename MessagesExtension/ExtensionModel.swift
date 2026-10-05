@@ -74,6 +74,7 @@ final class ExtensionModel {
         switch input {
         case .column(let column): play(.fourInARow(.init(column: column)))
         case .dart(let hit): throwDart(hit)
+        case .shot(let shot): takeShot(shot)
         case .sendCommitted: sendCommitted()
         }
     }
@@ -103,6 +104,28 @@ final class ExtensionModel {
             }
         } catch {
             errorText = "Couldn't throw that dart."
+        }
+    }
+
+    /// A shot is committed to the ledger before the balls move (no re-shots). The last
+    /// shot of a turn plays out in full before the sheet collapses.
+    private func takeShot(_ shot: EightBall.Shot) {
+        guard !isWorking, case .play(let session) = screen else { return }
+        let start = session.eightBallProgress
+        do {
+            switch try controller.takeShot(shot, in: session) {
+            case .thrown(let next):
+                screen = .play(next)
+            case .visitComplete(let next, let outgoing):
+                var delay = visitInsertDelay
+                if let start {
+                    let frames = EightBall.animation(of: shot, from: start.positions).frames.count
+                    delay = .milliseconds(min(9_000, frames * 1_000 / 60 + 900))
+                }
+                stage(outgoing, showing: staged(outgoing, over: session), restoring: next, delay: delay)
+            }
+        } catch {
+            errorText = "Couldn't take that shot."
         }
     }
 
