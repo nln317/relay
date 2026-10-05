@@ -8,12 +8,14 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
     case fourInARow(MatchSnapshot<FourInARow>)
     case darts(MatchSnapshot<Darts>)
     case eightBall(MatchSnapshot<EightBall>)
+    case cupPong(MatchSnapshot<CupPong>)
 
     public var header: MatchHeader {
         switch self {
         case .fourInARow(let snapshot): snapshot.match.header
         case .darts(let snapshot): snapshot.match.header
         case .eightBall(let snapshot): snapshot.match.header
+        case .cupPong(let snapshot): snapshot.match.header
         }
     }
 
@@ -23,7 +25,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
     public var allowsChangingStagedMove: Bool {
         switch self {
         case .fourInARow: true
-        case .darts, .eightBall: false
+        case .darts, .eightBall, .cupPong: false
         }
     }
 
@@ -35,6 +37,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
         case .fourInARow(let snapshot): snapshot.match.turnNumber
         case .darts(let snapshot): snapshot.match.turnNumber
         case .eightBall(let snapshot): snapshot.match.turnNumber
+        case .cupPong(let snapshot): snapshot.match.turnNumber
         }
     }
 
@@ -43,6 +46,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
         case .fourInARow(let snapshot): snapshot.match.outcome
         case .darts(let snapshot): snapshot.match.outcome
         case .eightBall(let snapshot): snapshot.match.outcome
+        case .cupPong(let snapshot): snapshot.match.outcome
         }
     }
 
@@ -51,6 +55,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
         case .fourInARow(let snapshot): snapshot.match.producedBy
         case .darts(let snapshot): snapshot.match.producedBy
         case .eightBall(let snapshot): snapshot.match.producedBy
+        case .cupPong(let snapshot): snapshot.match.producedBy
         }
     }
 
@@ -59,6 +64,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
         case .fourInARow(let snapshot): try MatchCodec.url(for: snapshot)
         case .darts(let snapshot): try MatchCodec.url(for: snapshot)
         case .eightBall(let snapshot): try MatchCodec.url(for: snapshot)
+        case .cupPong(let snapshot): try MatchCodec.url(for: snapshot)
         }
     }
 
@@ -68,6 +74,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
         case (.fourInARow(let a), .fourInARow(let b)): a.match.isPrefix(of: b.match)
         case (.darts(let a), .darts(let b)): a.match.isPrefix(of: b.match)
         case (.eightBall(let a), .eightBall(let b)): a.match.isPrefix(of: b.match)
+        case (.cupPong(let a), .cupPong(let b)): a.match.isPrefix(of: b.match)
         default: false
         }
     }
@@ -78,6 +85,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
         case .fourInARow(let snapshot): Self.dropLast(snapshot).map(AnyMatchSnapshot.fourInARow)
         case .darts(let snapshot): Self.dropLast(snapshot).map(AnyMatchSnapshot.darts)
         case .eightBall(let snapshot): Self.dropLast(snapshot).map(AnyMatchSnapshot.eightBall)
+        case .cupPong(let snapshot): Self.dropLast(snapshot).map(AnyMatchSnapshot.cupPong)
         }
     }
 
@@ -97,7 +105,7 @@ public enum AnyMatchSnapshot: Equatable, Sendable {
 /// Routes a URL to the right game decoder.
 public enum GameDecoders {
     public static func isKnown(_ id: GameID) -> Bool {
-        id == FourInARow.gameID || id == Darts.gameID || id == EightBall.gameID
+        id == FourInARow.gameID || id == Darts.gameID || id == EightBall.gameID || id == CupPong.gameID
     }
 
     public static func decode(_ url: URL) throws(ProtocolError) -> AnyMatchSnapshot {
@@ -109,6 +117,8 @@ public enum GameDecoders {
             return .darts(try MatchCodec.decode(url, as: Darts.self))
         case EightBall.gameID:
             return .eightBall(try MatchCodec.decode(url, as: EightBall.self))
+        case CupPong.gameID:
+            return .cupPong(try MatchCodec.decode(url, as: CupPong.self))
         default:
             throw .unknownGame(game.rawValue)
         }

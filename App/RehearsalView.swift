@@ -68,6 +68,11 @@ final class RehearsalModel {
                 case .thrown(let next): screen = .play(next)
                 case .visitComplete(_, let outgoing): send(outgoing)
                 }
+            case .ball(let landing):
+                switch try controller.throwBall(landing, in: session) {
+                case .thrown(let next): screen = .play(next)
+                case .visitComplete(_, let outgoing): send(outgoing)
+                }
             case .sendCommitted:
                 guard let draft = session.draft else { return }
                 send(try controller.prepareMove(draft, in: session))

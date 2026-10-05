@@ -12,6 +12,8 @@ public enum PlayInput: Equatable, Sendable {
     case dart(Darts.Hit)
     /// 8-Ball: one shot.
     case shot(EightBall.Shot)
+    /// Cup Pong: a ball came down here.
+    case ball(CupPong.Landing)
     /// Darts and 8-Ball: put the already committed turn back in the message box.
     case sendCommitted
 }
@@ -41,6 +43,9 @@ public struct PlayScreen: View {
                 .environment(\.seatPalette, SeatPalette(coloursSwapped: snapshot.match.header.coloursSwapped))
         case .eightBall(let snapshot):
             EightBallPlayContent(session: session, match: snapshot.match, onInput: onInput, onRematch: onRematch, onNewGame: onNewGame)
+                .environment(\.seatPalette, SeatPalette(coloursSwapped: snapshot.match.header.coloursSwapped))
+        case .cupPong(let snapshot):
+            CupPongPlayContent(session: session, match: snapshot.match, onInput: onInput, onRematch: onRematch, onNewGame: onNewGame)
                 .environment(\.seatPalette, SeatPalette(coloursSwapped: snapshot.match.header.coloursSwapped))
         }
     }
@@ -488,6 +493,133 @@ struct EightBallPlayContent: View {
     }
 }
 
+/// Cup Pong inside a conversation. Balls are numbered per turn (20 a turn) like 8-Ball shots.
+struct CupPongPlayContent: View {
+    let session: PlaySession
+    let match: Match<CupPong>
+    let onInput: (PlayInput) -> Void
+    let onRematch: () -> Void
+    let onNewGame: () -> Void
+
+    var body: some View {
+        CupPongTable(
+            state: shownState,
+            cups: cups,
+            localSeat: session.localSeat,
+            thrower: session.localSeat,
+            canThrow: canThrow,
+            balls: balls,
+            replaysBalls: replaysOpponentTurn,
+            nextBallID: match.turnNumber * 20 + (ownProgress?.balls.count ?? 0),
+            ballsLeft: isYourTurn ? (ownProgress?.ballsLeft ?? CupPong.ballsPerTurn) : 0,
+            status: ownProgress?.ballsBack == true ? "Balls back!" : nil,
+            banner: banner,
+            winner: match.outcome.winner,
+            notices: session.notices.map(\.text),
+            onThrow: { onInput(.ball($0)) },
+            menuItems: {
+                if match.outcome.isFinished, session.knownRematch == nil {
+                    Button("Rematch", systemImage: "arrow.counterclockwise", action: onRematch)
+                }
+                Button("New game", systemImage: "plus", action: onNewGame)
+            },
+            footer: { footer }
+        )
+        .id(TableIdentity(match: match.header.matchID, seat: session.localSeat))
+        .task(id: match.turnNumber) { announceOpponentTurn() }
+    }
+
+    private var isYourTurn: Bool {
+        if case .yourTurn = session.mode { return true }
+        return false
+    }
+
+    private var ownProgress: CupPong.TurnProgress? {
+        guard isYourTurn else { return nil }
+        return session.cupPongProgress
+    }
+
+    private var pendingState: CupPong.State? {
+        guard case .readyToSend(let pending) = session.mode, case .cupPong(let snapshot) = pending else { return nil }
+        return snapshot.match.state
+    }
+
+    /// The match as it will stand once a staged turn is sent, for the cup counts.
+    private var shownState: CupPong.State { pendingState ?? match.state }
+
+    private var cups: [CupPong.Cup] {
+        ownProgress?.cups ?? shownState.targets(for: session.localSeat)
+    }
+
+    private var canThrow: Bool {
+        guard isYourTurn, session.canMove else { return false }
+        return !(ownProgress?.isComplete ?? false)
+    }
+
+    private var balls: [PongBall] {
+        let thisTurn = match.turnNumber * 20
+        if let ownProgress, !ownProgress.balls.isEmpty {
+            return PongBall.turn(ownProgress.balls, firstID: thisTurn)
+        }
+        if let pending = pendingState?.lastTurn {
+            return PongBall.turn(pending.balls, firstID: thisTurn)
+        }
+        guard let last = match.state.lastTurn else { return [] }
+        return PongBall.turn(last.balls, firstID: thisTurn - 20)
+    }
+
+    private var replaysOpponentTurn: Bool {
+        guard isYourTurn, ownProgress?.balls.isEmpty ?? true else { return false }
+        return match.state.lastTurn?.seat == session.localSeat.opponent
+    }
+
+    private var banner: DartsBanner? {
+        switch session.mode {
+        case .yourTurn: return nil
+        case .waitingForOpponent: return .info("Waiting for opponent...")
+        case .readyToSend: return .info("Tap send to finish your turn")
+        case .finished:
+            switch match.outcome {
+            case .won(let winner): return winner == session.localSeat ? .celebration("You won!") : .info("You lost")
+            case .draw: return .info("Draw")
+            case .inProgress: return nil
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var footer: some View {
+        switch session.mode {
+        case .yourTurn:
+            if let ownProgress, ownProgress.isComplete {
+                Button("Send your turn") { onInput(.sendCommitted) }
+                    .buttonStyle(GameButtonStyle())
+                    .accessibilityHint("Puts the balls you already threw back in the message box")
+            }
+        case .waitingForOpponent, .readyToSend:
+            EmptyView()
+        case .finished:
+            if session.knownRematch != nil {
+                Text("Rematch started. Open the newest game bubble.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+            } else {
+                Button("Rematch", action: onRematch)
+                    .buttonStyle(GameButtonStyle())
+                    .accessibilityHint("Starts a new game against the same player")
+            }
+        }
+    }
+
+    private func announceOpponentTurn() {
+        guard isYourTurn, let last = match.state.lastTurn, last.seat != session.localSeat else { return }
+        let sunk = last.sunk
+        let text = sunk == 0 ? "They missed." : "They sank \(sunk) cup\(sunk == 1 ? "" : "s")."
+        AccessibilityNotification.Announcement("\(text) You have \(match.state.cupsLeft(for: session.localSeat)) cups left.").post()
+    }
+}
+
 /// Words for the 8-Ball table: the status line and what VoiceOver says about a turn.
 public enum EightBallText {
     public static func foul(_ foul: EightBall.Foul) -> String {
@@ -559,6 +691,8 @@ public struct GameSnapshotArt: View {
             DartsBubbleArt(state: snapshot.match.state, palette: SeatPalette(coloursSwapped: snapshot.match.header.coloursSwapped))
         case .eightBall(let snapshot):
             EightBallBubbleArt(state: snapshot.match.state)
+        case .cupPong(let snapshot):
+            CupPongBubbleArt(state: snapshot.match.state)
         }
     }
 }
@@ -577,6 +711,10 @@ extension BubbleImageRenderer {
             return renderer.uiImage
         case .eightBall(let snapshot):
             let renderer = ImageRenderer(content: EightBallBubbleArt(state: snapshot.match.state))
+            renderer.scale = 3
+            return renderer.uiImage
+        case .cupPong(let snapshot):
+            let renderer = ImageRenderer(content: CupPongBubbleArt(state: snapshot.match.state))
             renderer.scale = 3
             return renderer.uiImage
         }

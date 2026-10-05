@@ -192,3 +192,17 @@ iMessage pool layout (D-031): players and groups along the top, a tall table, po
 the left pulled down and released to shoot, a ridged fine-aim wheel on the right, a spin
 ball, an aim guide with the object ball's path, and the other player's shots replayed on
 opening. All drawing is our own.
+
+**D-033 Cup Pong: landing points on the wire, integer cup test** (2026-10-05). A turn is
+the list of points where each ball came down, in whole millimetres on the target end of
+an 8-foot table. The rules find the nearest cup by squared distance: within 36 mm of its
+centre the ball sinks it, within the rim (cup 47 mm + ball 20 mm) it bounces out, else
+it hits the table or misses. Ten cups in a 4-3-2-1 triangle per side, two balls a turn,
+both in gives the balls back, and a side down to 6, 3 or 1 cups is re-racked into a tight
+triangle at the end of the turn (to check against Nathan's recordings of the classic
+game). First to clear the other side wins; after 80 turns more cups standing wins. Each
+ball is committed before it flies, as in Darts. Swipe speed sets distance on a log curve
+(420 mm per doubling) and the swipe's line sets drift, reusing the Darts aim reading. The
+table follows the classic iMessage pong layout (D-031): players and cup counts on top, a
+blue table in perspective with the cups at the far end, the ball at the bottom swiped up.
+All drawing is our own.

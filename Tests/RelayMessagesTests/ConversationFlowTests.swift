@@ -693,3 +693,88 @@ struct EightBallConversationTests {
         #expect(decoded.match.state == match.state)
     }
 }
+
+@Suite("Cup Pong over Messages")
+struct CupPongConversationTests {
+    /// Throws balls at the cups until the turn ends; returns the message to insert.
+    private func throwTurn(on device: SimulatedDevice, in start: PlaySession, rng: inout SplitMix) throws -> OutgoingMessage {
+        let bot = CupPongBot(difficulty: .standard)
+        var session = start
+        while true {
+            let cups = try #require(session.cupPongProgress).cups
+            switch try device.controller.throwBall(bot.nextLanding(at: cups, using: &rng), in: session) {
+            case .thrown(let next): session = next
+            case .visitComplete(_, let outgoing): return outgoing
+            }
+        }
+    }
+
+    @Test func turnsTravelAndReplayToTheSameCups() throws {
+        var rng = SplitMix(state: 4)
+        let ava = SimulatedDevice(name: "ava"), ben = SimulatedDevice(name: "ben")
+        let chat = Conversation()
+        guard case .play(let fresh) = ava.controller.startMatch(game: CupPong.gameID) else {
+            Issue.record("challenger throws first")
+            return
+        }
+        let first = try throwTurn(on: ava, in: fresh, rng: &rng)
+        #expect(first.caption.subcaption == "Your turn")
+        chat.insertAndSend(first, from: ava)
+
+        let benTurn = try session(chat.open(chat.last, on: ben))
+        #expect(benTurn.mode == .yourTurn)
+        #expect(benTurn.localSeat == .two)
+        guard case .cupPong(let seen) = benTurn.snapshot, case .cupPong(let sent) = first.snapshot else {
+            Issue.record("expected Cup Pong")
+            return
+        }
+        #expect(seen.match.state == sent.match.state)
+        #expect(benTurn.cupPongProgress?.balls.isEmpty == true)
+        chat.insertAndSend(try throwTurn(on: ben, in: benTurn, rng: &rng), from: ben)
+        #expect(try session(chat.open(chat.last, on: ava)).snapshot.turnNumber == 2)
+    }
+
+    @Test func aFinishedTurnCannotBeRethrown() throws {
+        var rng = SplitMix(state: 6)
+        let ava = SimulatedDevice(name: "ava")
+        guard case .play(let fresh) = ava.controller.startMatch(game: CupPong.gameID) else { return }
+        // A miss commits the first ball; reopening keeps it.
+        let miss = CupPong.Landing(x: 2_000, y: 500)
+        guard case .thrown(let afterOne) = try ava.controller.throwBall(miss, in: fresh) else {
+            Issue.record("one ball doesn't end a turn")
+            return
+        }
+        #expect(afterOne.cupPongProgress?.ballsLeft == 1)
+        let staged = try throwTurn(on: ava, in: afterOne, rng: &rng)
+        ava.controller.didInsert(staged)
+        ava.controller.didCancelSending(url: staged.url)
+        ava.relaunch()
+        let again = PlaySession(snapshot: fresh.snapshot, localSeat: .one, mode: .yourTurn, draft: ava.controller.committedDraft(for: fresh.snapshot))
+        #expect(again.cupPongProgress?.isComplete == true)
+        #expect(again.cupPongProgress?.balls.first?.landing == miss)
+        #expect(throws: ControllerError.visitAlreadyComplete) { try ava.controller.throwBall(miss, in: again) }
+    }
+
+    @Test func aWholeGameFitsInOneMessage() throws {
+        var rng = SplitMix(state: 12)
+        let bot = CupPongBot(difficulty: .casual)
+        let header = MatchHeader(gameID: CupPong.gameID, rulesVersion: CupPong.rulesVersion)
+        var match = try Match<CupPong>(header: header, configuration: .standard)
+        while let seat = match.outcome.seatToAct {
+            match = try match.applying(try #require(bot.takeTurn(in: match.state, using: &rng)), by: seat)
+        }
+        let url = try MatchCodec.url(for: MatchSnapshot(match: match))
+        #expect(try MatchCodec.decode(url, as: CupPong.self).match.state == match.state)
+    }
+
+    @Test func eightyTurnsOfMissesStillFit() throws {
+        let header = MatchHeader(gameID: CupPong.gameID, rulesVersion: CupPong.rulesVersion)
+        var match = try Match<CupPong>(header: header, configuration: .standard)
+        let miss = CupPong.Action(landings: [.init(x: -1_234, y: 2_345), .init(x: 1_234, y: -2_345)])
+        while let seat = match.outcome.seatToAct {
+            match = try match.applying(miss, by: seat)
+        }
+        #expect(match.turnNumber == CupPong.maximumTurns)
+        #expect(throws: Never.self) { try MatchCodec.url(for: MatchSnapshot(match: match)) }
+    }
+}

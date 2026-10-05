@@ -311,6 +311,8 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
     /// The aim when a fine-tune drag began.
     @State private var fineStartAim: PoolTable.Vector?
     @State private var fineOffset: CGFloat = 0
+    /// The player has moved the cue ball this turn, so the hand hint can go.
+    @State private var movedCue = false
     @Environment(\.seatPalette) private var palette
 
     enum DragMode {
@@ -535,6 +537,13 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
                             // A ring says the cue ball can be moved.
                             let c = mapping.point(cue)
                             context.stroke(Path(ellipseIn: CGRect(x: c.x - r * 2, y: c.y - r * 2, width: r * 4, height: r * 4)), with: .color(placingLegal ? .white.opacity(0.8) : .red), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+                            if !movedCue {
+                                // A hand says "drag me" until the ball has been moved once.
+                                context.draw(
+                                    Image(systemName: "hand.point.up.left.fill").font(.system(size: max(14, r * 2.2))).foregroundStyle(.white),
+                                    at: CGPoint(x: c.x + r * 2.4, y: c.y + r * 2.4)
+                                )
+                            }
                         }
                         PoolPainter.drawCue(
                             in: &context, ball: mapping.point(cue), direction: CGVector(dx: aim.x, dy: aim.y),
@@ -647,6 +656,7 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
     /// With the cue ball in hand and off the table, start it somewhere legal near the head spot.
     private func prepareTurn() {
         guard canShoot else { return }
+        if ballInHand == .none || placing == nil { movedCue = false }
         if ballInHand != .none, positions[0] == nil, placing == nil {
             for offset in stride(from: 0.0, through: 600, by: 30) {
                 for sign in [1.0, -1.0] {
@@ -669,6 +679,7 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
             y: min(max(point.y, ballInHand == .behindHeadString ? PoolTable.headString : PoolTable.ballRadius), PoolTable.length - PoolTable.ballRadius)
         )
         placing = clamped
+        movedCue = true
         placingLegal = EightBall.isLegalPlacement(placement(for: clamped), ballInHand: ballInHand, positions: positions)
     }
 

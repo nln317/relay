@@ -83,6 +83,14 @@ public struct PlaySession: Equatable, Sendable {
         if case .eightBall(let turn)? = draft { shots = turn.shots } else { shots = [] }
         return snapshot.match.state.progress(of: shots, by: localSeat)
     }
+
+    /// The balls thrown so far this turn, judged against the official cups.
+    public var cupPongProgress: CupPong.TurnProgress? {
+        guard case .cupPong(let snapshot) = snapshot else { return nil }
+        let landings: [CupPong.Landing]
+        if case .cupPong(let turn)? = draft { landings = turn.landings } else { landings = [] }
+        return snapshot.match.state.progress(of: landings, by: localSeat)
+    }
 }
 
 public enum ConversationScreen: Equatable, Sendable {
@@ -112,6 +120,7 @@ public enum AnyAction: Equatable, Sendable {
     case fourInARow(FourInARow.Action)
     case darts(Darts.Action)
     case eightBall(EightBall.Action)
+    case cupPong(CupPong.Action)
 }
 
 public enum ControllerError: Error, Equatable, Sendable {
@@ -302,6 +311,7 @@ public final class ConversationController {
         case FourInARow.gameID: rulesVersion = FourInARow.rulesVersion
         case Darts.gameID: rulesVersion = Darts.rulesVersion
         case EightBall.gameID: rulesVersion = EightBall.rulesVersion
+        case CupPong.gameID: rulesVersion = CupPong.rulesVersion
         default: return nil
         }
         analytics.record(.gameSelected(game))
@@ -322,6 +332,8 @@ public final class ConversationController {
         case .darts(let snapshot):
             header = snapshot.match.rematchHeader(initiator: session.localSeat)
         case .eightBall(let snapshot):
+            header = snapshot.match.rematchHeader(initiator: session.localSeat)
+        case .cupPong(let snapshot):
             header = snapshot.match.rematchHeader(initiator: session.localSeat)
         }
         analytics.record(.rematchStarted(header.gameID))
@@ -349,6 +361,11 @@ public final class ConversationController {
             if case .eightBall(let old)? = previous { configuration = old.match.configuration }
             guard let match = try? Match<EightBall>(header: header, configuration: configuration) else { return nil }
             snapshot = .eightBall(MatchSnapshot(match: match))
+        case CupPong.gameID:
+            var configuration = CupPong.Configuration.standard
+            if case .cupPong(let old)? = previous { configuration = old.match.configuration }
+            guard let match = try? Match<CupPong>(header: header, configuration: configuration) else { return nil }
+            snapshot = .cupPong(MatchSnapshot(match: match))
         default:
             return nil
         }
@@ -388,6 +405,13 @@ public final class ConversationController {
             do {
                 let match = try snapshot.match.applying(turn, by: session.localSeat)
                 next = .eightBall(MatchSnapshot(match: match, loadouts: snapshot.loadouts))
+            } catch {
+                throw .illegalMove(String(describing: error))
+            }
+        case (.cupPong(let snapshot), .cupPong(let turn)):
+            do {
+                let match = try snapshot.match.applying(turn, by: session.localSeat)
+                next = .cupPong(MatchSnapshot(match: match, loadouts: snapshot.loadouts))
             } catch {
                 throw .illegalMove(String(describing: error))
             }
@@ -462,12 +486,35 @@ public final class ConversationController {
         return .visitComplete(updated, try prepareMove(turn, in: updated))
     }
 
+    /// Commits one Cup Pong ball before anything is shown about where it went, like
+    /// `throwDart`.
+    public func throwBall(_ landing: CupPong.Landing, in session: PlaySession) throws(ControllerError) -> ThrowResult {
+        guard case .yourTurn = session.mode, session.canMove,
+              case .cupPong(let snapshot) = session.snapshot
+        else { throw .notYourTurn }
+        var landings: [CupPong.Landing] = []
+        if case .cupPong(let committed)? = committedDraft(for: session.snapshot) { landings = committed.landings }
+        let state = snapshot.match.state
+        guard !state.progress(of: landings, by: session.localSeat).isComplete else { throw .visitAlreadyComplete }
+        let reach = CupPong.maximumReach
+        landings.append(CupPong.Landing(x: min(max(landing.x, -reach), reach), y: min(max(landing.y, -reach), reach)))
+        let turn = AnyAction.cupPong(CupPong.Action(landings: landings))
+        commitDraft(turn, for: session.snapshot)
+        var updated = session
+        updated.draft = turn
+        guard state.progress(of: landings, by: session.localSeat).isComplete else {
+            return .thrown(updated)
+        }
+        return .visitComplete(updated, try prepareMove(turn, in: updated))
+    }
+
     private func commitDraft(_ action: AnyAction, for snapshot: AnyMatchSnapshot) {
         let data: Data?
         switch action {
         case .fourInARow(let move): data = try? JSONEncoder().encode(move)
         case .darts(let visit): data = try? JSONEncoder().encode(visit)
         case .eightBall(let turn): data = try? JSONEncoder().encode(turn)
+        case .cupPong(let turn): data = try? JSONEncoder().encode(turn)
         }
         guard let data else { return }
         persist { ledger in
@@ -489,6 +536,8 @@ public final class ConversationController {
             return (try? JSONDecoder().decode(Darts.Action.self, from: draft.action)).map(AnyAction.darts)
         case .eightBall:
             return (try? JSONDecoder().decode(EightBall.Action.self, from: draft.action)).map(AnyAction.eightBall)
+        case .cupPong:
+            return (try? JSONDecoder().decode(CupPong.Action.self, from: draft.action)).map(AnyAction.cupPong)
         }
     }
 
@@ -585,6 +634,8 @@ public final class ConversationController {
             return darts.match.state.lastVisit?.result == .finished ? "checked out!" : "fewest points left"
         case .eightBall(let pool):
             return pool.match.state.lastTurn?.shots.last?.ending == .won ? "sank the 8!" : "8-ball foul"
+        case .cupPong(let pong):
+            return pong.match.state.turns.count >= CupPong.maximumTurns ? "most cups left" : "all cups sunk!"
         }
     }
 

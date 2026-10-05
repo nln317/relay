@@ -75,6 +75,7 @@ final class ExtensionModel {
         case .column(let column): play(.fourInARow(.init(column: column)))
         case .dart(let hit): throwDart(hit)
         case .shot(let shot): takeShot(shot)
+        case .ball(let landing): throwBall(landing)
         case .sendCommitted: sendCommitted()
         }
     }
@@ -126,6 +127,21 @@ final class ExtensionModel {
             }
         } catch {
             errorText = "Couldn't take that shot."
+        }
+    }
+
+    /// A ball is committed to the ledger before it is shown flying (no re-throws).
+    private func throwBall(_ landing: CupPong.Landing) {
+        guard !isWorking, case .play(let session) = screen else { return }
+        do {
+            switch try controller.throwBall(landing, in: session) {
+            case .thrown(let next):
+                screen = .play(next)
+            case .visitComplete(let next, let outgoing):
+                stage(outgoing, showing: staged(outgoing, over: session), restoring: next, delay: .milliseconds(1_700))
+            }
+        } catch {
+            errorText = "Couldn't throw that ball."
         }
     }
 

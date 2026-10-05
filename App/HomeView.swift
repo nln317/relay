@@ -41,6 +41,12 @@ struct HomeView: View {
                             }
                             .buttonStyle(PressableStyle())
                         }
+                        ForEach(CupPongPracticeOpponent.allCases) { opponent in
+                            NavigationLink(value: opponent) {
+                                PracticeRow(opponent: opponent)
+                            }
+                            .buttonStyle(PressableStyle())
+                        }
                     }
 
                     #if DEBUG
@@ -73,6 +79,9 @@ struct HomeView: View {
             }
             .navigationDestination(for: EightBallPracticeOpponent.self) { opponent in
                 EightBallPracticeView(opponent: opponent)
+            }
+            .navigationDestination(for: CupPongPracticeOpponent.self) { opponent in
+                CupPongPracticeView(opponent: opponent)
             }
         }
     }

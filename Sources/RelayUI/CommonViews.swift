@@ -50,6 +50,15 @@ struct GameTile: View {
                     DartsBoardView(darts: [], animatesDarts: false).padding(5)
                 } else if game.id == EightBall.gameID {
                     BallToken(number: 8).padding(12)
+                } else if game.id == CupPong.gameID {
+                    Canvas { context, size in
+                        let p = PongProjection(size: CGSize(width: size.width, height: size.height * 2.4))
+                        var shifted = context
+                        shifted.translateBy(x: 0, y: -size.height * 0.2)
+                        for cup in CupPong.Table.rack(6).sorted(by: { $0.y > $1.y }) {
+                            PongPainter.drawCup(in: &shifted, projection: p, x: Double(cup.x), y: Double(cup.y))
+                        }
+                    }
                 } else {
                     HStack(spacing: 3) {
                         DiscView(seat: .one).frame(width: 18, height: 18)
