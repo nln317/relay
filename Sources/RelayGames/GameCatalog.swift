@@ -39,7 +39,7 @@ public enum GameCatalog {
     public static let darts = GameDefinition(
         id: Darts.gameID,
         displayName: "Darts",
-        tagline: "Count down from 201. Hit zero exactly to win.",
+        tagline: "Count down from 101. Hit zero exactly to win.",
         category: .skill,
         typicalMinutes: 3...8,
         symbolName: "target"

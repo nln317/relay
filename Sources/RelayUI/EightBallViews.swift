@@ -363,6 +363,11 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
         self.onShoot = onShoot
         self.menuItems = menuItems()
         self.footer = footer()
+        // Queue a replay from the first frame, so the finished table never flashes first.
+        if replaysShots {
+            _queue = State(initialValue: shots)
+        }
+        _seen = State(initialValue: Set(shots.map(\.id)))
     }
 
     private var isIdle: Bool { playing == nil && queue.isEmpty }
@@ -373,15 +378,15 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
         VStack(spacing: 8) {
             players
                 .padding(.horizontal, 12)
-            if let status, isIdle {
-                Text(status)
-                    .font(.caption.weight(.heavy))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.white.opacity(0.14)))
-                    .transition(.opacity)
-            }
+            // The chip's room is always kept, so the table never jumps when it comes and goes.
+            Text(status ?? " ")
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color.white.opacity(0.14)))
+                .opacity(status != nil && isIdle ? 1 : 0)
             ForEach(notices, id: \.self) { notice in
                 Text(notice)
                     .font(.caption.weight(.semibold))
@@ -541,7 +546,7 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
             .overlay {
                 if let banner, isIdle {
                     GameBannerView(banner: banner)
-                        .padding(.horizontal, 30)
+                        .padding(.horizontal, 6)
                         .allowsHitTesting(false)
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
@@ -889,12 +894,11 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
     }
 
     private func start() {
-        if replaysShots {
-            enqueue(shots)
+        if playing == nil, !queue.isEmpty {
+            playNext()
         } else {
-            seen.formUnion(shots.map(\.id))
+            prepareTurn()
         }
-        prepareTurn()
     }
 
     private func enqueue(_ all: [PoolShotPlayback]) {
@@ -906,11 +910,13 @@ public struct EightBallTable<MenuItems: View, Footer: View>: View {
     }
 
     private func playNext() {
-        guard !queue.isEmpty else { return }
-        let next = queue.removeFirst()
-        // A short pause between shots so each one reads.
+        guard let next = queue.first else { return }
+        // A short pause between shots so each one reads; the shot stays queued (and its
+        // starting table shown) until it starts rolling.
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(450))
+            guard playing == nil, queue.first?.id == next.id else { return }
+            queue.removeFirst()
             play(next)
         }
     }
